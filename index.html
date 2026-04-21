@@ -3,589 +3,273 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RICE Score Calculator — Jira</title>
+<title>RICE Score Calculator</title>
 <style>
-  :root {
-    --blue: #0065A4;
-    --blue-dark: #00263E;
-    --orange: #FD9D0D;
-    --surface: #f5f6f8;
-    --card: #ffffff;
-    --border: #e2e4e9;
-    --border-strong: #c8ccd6;
-    --text: #1a1d23;
-    --text-muted: #6b7280;
-    --text-light: #9ca3af;
-    --green: #16a34a;
-    --red: #dc2626;
-    --jira-blue: #0052cc;
-    --score-c: #00263E;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    font-family: -apple-system, 'Segoe UI', sans-serif;
-    background: var(--surface);
-    color: var(--text);
-    min-height: 100vh;
-    font-size: 13px;
-  }
-
-  /* ── Top bar ──────────────────────────────── */
-  .topbar {
-    background: var(--blue-dark);
-    padding: 0 24px;
-    height: 52px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    border-bottom: 2px solid var(--orange);
-  }
-  .logo-badge {
-    background: var(--jira-blue);
-    color: white;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 3px 7px;
-    border-radius: 3px;
-    letter-spacing: 0.5px;
-  }
-  .topbar-title  { color: white; font-size: 14px; font-weight: 600; }
-  .topbar-sep    { width: 1px; height: 20px; background: rgba(255,255,255,0.2); }
-  .topbar-sub    { color: rgba(255,255,255,0.55); font-size: 12px; }
-  .topbar-right  { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-  .conn-dot      { width: 8px; height: 8px; border-radius: 50%; background: #9ca3af; transition: background 0.3s; }
-  .conn-dot.ok   { background: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,0.25); }
-  .conn-dot.err  { background: #ef4444; }
-  .conn-label    { color: rgba(255,255,255,0.6); font-size: 11px; }
-  .topbar-btn {
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.2);
-    color: rgba(255,255,255,0.8);
-    padding: 5px 10px;
-    border-radius: 5px;
-    font-size: 11px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    transition: background 0.15s;
-  }
-  .topbar-btn:hover { background: rgba(255,255,255,0.18); }
-  .topbar-btn svg { width: 13px; height: 13px; }
-
-  /* ── Layout ───────────────────────────────── */
-  .layout {
-    display: grid;
-    grid-template-columns: 1fr 290px;
-    height: calc(100vh - 52px);
-  }
-
-  .main-panel { overflow-y: auto; padding: 20px 24px; }
-  .side-panel {
-    background: var(--card);
-    border-left: 1px solid var(--border);
-    overflow-y: auto;
-    padding: 20px;
-  }
-
-  /* ── Formula bar ──────────────────────────── */
-  .formula-bar {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 11px 16px;
-    margin-bottom: 16px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    flex-wrap: wrap;
-  }
-  .formula-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; }
-  .formula-eq    { font-size: 13px; font-family: 'SF Mono', 'Consolas', monospace; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .f-var  { padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 12px; }
-  .f-reach  { background: #ede9fe; color: #5b21b6; }
-  .f-impact { background: #dbeafe; color: #1d4ed8; }
-  .f-conf   { background: #dcfce7; color: #15803d; }
-  .f-effort { background: #fef3c7; color: #92400e; }
-  .f-op     { color: var(--text-muted); }
-  .f-result { font-weight: 700; color: var(--score-c); }
-
-  /* ── Toolbar ──────────────────────────────── */
-  .toolbar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 14px;
-    flex-wrap: wrap;
-  }
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 13px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    border: 1px solid transparent;
-    transition: all 0.15s;
-    white-space: nowrap;
-  }
-  .btn svg { width: 13px; height: 13px; flex-shrink: 0; }
-  .btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
-
-  .btn-jira      { background: var(--jira-blue); color: white; }
-  .btn-jira:hover{ background: #0043a4; }
-  .btn-primary   { background: var(--blue); color: white; }
-  .btn-primary:hover { background: #004d80; }
-  .btn-secondary { background: var(--card); color: var(--text); border-color: var(--border-strong); }
-  .btn-secondary:hover { background: var(--surface); }
-  .btn-danger    { background: white; color: var(--red); border-color: #fca5a5; }
-  .btn-danger:hover { background: #fef2f2; }
-
-  .toolbar-right { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .sort-label    { font-size: 11px; color: var(--text-muted); }
-  .sort-btn {
-    padding: 4px 9px; border-radius: 4px; cursor: pointer;
-    border: 1px solid transparent; font-size: 11px; transition: all 0.15s; background: transparent;
-  }
-  .sort-btn.active { background: var(--blue-dark); color: white; }
-  .sort-btn:not(.active):hover { background: var(--surface); border-color: var(--border); }
-
-  /* ── Table ────────────────────────────────── */
-  .items-table {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
-  }
-  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  thead tr { background: #f8f9fb; border-bottom: 1px solid var(--border); }
-  th {
-    padding: 9px 10px;
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    color: var(--text-muted);
-    text-align: left;
-    user-select: none;
-  }
-  th.center, td.center { text-align: center; }
-  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
-  tbody tr:last-child  { border-bottom: none; }
-  tbody tr:hover       { background: #fafbfc; }
-  tbody tr.top-row     { background: #f0f7ff; }
-  td { padding: 8px 10px; vertical-align: middle; }
-
-  .rank-badge {
-    width: 22px; height: 22px; border-radius: 50%;
-    display: inline-flex; align-items: center; justify-content: center;
-    font-size: 10px; font-weight: 700;
-  }
-  .rank-1 { background: #fef3c7; color: #92400e; }
-  .rank-2 { background: #f3f4f6; color: #374151; }
-  .rank-3 { background: #fde8c8; color: #78350f; }
-  .rank-n { background: var(--surface); color: var(--text-muted); }
-
-  .item-key  { font-size: 11px; font-weight: 600; color: var(--jira-blue); font-family: monospace; white-space: nowrap; }
-  .item-name { font-size: 13px; font-weight: 500; color: var(--text); }
-  .item-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
-
-  .type-badge {
-    display: inline-block; padding: 1px 6px; border-radius: 3px;
-    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; margin-right: 4px;
-  }
-  .type-epic   { background: #f3e8ff; color: #7e22ce; }
-  .type-story  { background: #dcfce7; color: #166534; }
-  .type-task   { background: #e0f2fe; color: #075985; }
-  .type-manual { background: #f1f5f9; color: #475569; }
-  .type-bug    { background: #fee2e2; color: #991b1b; }
-
-  .score-input {
-    width: 54px; padding: 4px 6px;
-    border: 1px solid var(--border); border-radius: 5px;
-    font-size: 12px; text-align: center; background: white;
-    transition: border-color 0.15s, box-shadow 0.15s;
-  }
-  .score-input:focus          { outline: none; }
-  .score-input.reach:focus    { border-color: #8b5cf6; box-shadow: 0 0 0 2px rgba(139,92,246,0.12); }
-  .score-input.impact:focus   { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.12); }
-  .score-input.conf:focus     { border-color: #10b981; box-shadow: 0 0 0 2px rgba(16,185,129,0.12); }
-  .score-input.effort:focus   { border-color: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,0.12); }
-  .score-input:invalid        { border-color: var(--red); }
-
-  .rice-score { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .rice-score.high { color: #166534; }
-  .rice-score.med  { color: #92400e; }
-  .rice-score.low  { color: var(--text-muted); }
-  .rice-score.none { color: var(--text-light); font-size: 13px; font-weight: 400; }
-
-  .score-bar-wrap { width: 56px; height: 4px; background: var(--surface); border-radius: 2px; display: block; margin-top: 4px; }
-  .score-bar { height: 4px; border-radius: 2px; transition: width 0.4s ease; }
-
-  .action-btn {
-    width: 26px; height: 26px; border-radius: 5px; border: none;
-    background: transparent; cursor: pointer;
-    display: inline-flex; align-items: center; justify-content: center;
-    color: var(--text-muted); transition: all 0.15s;
-  }
-  .action-btn:hover        { background: #fee2e2; color: var(--red); }
-  .action-btn.edit:hover   { background: #eff6ff; color: var(--blue); }
-  .action-btn svg          { width: 13px; height: 13px; }
-  .action-cell             { display: flex; align-items: center; justify-content: center; gap: 2px; }
-
-  .key-link {
-    font-size: 11px; font-weight: 700; color: var(--jira-blue);
-    font-family: monospace; text-decoration: none; white-space: nowrap;
-    display: inline-flex; align-items: center; gap: 3px;
-  }
-  .key-link:hover { text-decoration: underline; }
-  .key-link svg   { width: 10px; height: 10px; opacity: 0.6; flex-shrink: 0; }
-  .key-plain      { font-size: 11px; font-weight: 700; color: var(--jira-blue); font-family: monospace; }
-
-  /* ── Empty state ──────────────────────────── */
-  .empty-state { padding: 52px 24px; text-align: center; }
-  .empty-icon  { font-size: 36px; margin-bottom: 12px; }
-  .empty-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
-  .empty-sub   { font-size: 13px; color: var(--text-muted); margin-bottom: 22px; }
-  .empty-actions { display: flex; gap: 8px; justify-content: center; }
-
-  /* ── Sidebar ──────────────────────────────── */
-  .side-section { margin-bottom: 24px; }
-  .side-title {
-    font-size: 10px; font-weight: 700; color: var(--text-muted);
-    text-transform: uppercase; letter-spacing: 0.7px;
-    margin-bottom: 10px; padding-bottom: 6px;
-    border-bottom: 1px solid var(--border);
-  }
-  .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .kpi-card { background: var(--surface); border-radius: 7px; padding: 10px 12px; }
-  .kpi-label { font-size: 10px; color: var(--text-muted); font-weight: 500; margin-bottom: 3px; }
-  .kpi-value { font-size: 20px; font-weight: 700; color: var(--text); line-height: 1; }
-  .kpi-value.blue { color: var(--blue); }
-
-  .rank-list { list-style: none; }
-  .rank-item {
-    display: flex; align-items: center; gap: 8px;
-    padding: 7px 0; border-bottom: 1px solid var(--border);
-    cursor: pointer; transition: padding-left 0.15s;
-  }
-  .rank-item:last-child { border-bottom: none; }
-  .rank-item:hover { padding-left: 4px; }
-  .rank-num   { font-size: 10px; font-weight: 700; color: var(--text-muted); width: 14px; text-align: right; flex-shrink: 0; }
-  .rank-name  { font-size: 12px; font-weight: 500; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .rank-score { font-size: 12px; font-weight: 700; color: var(--blue); flex-shrink: 0; }
-
-  .guide-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 7px; font-size: 12px; color: var(--text-muted); line-height: 1.4; }
-  .guide-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 3px; flex-shrink: 0; }
-
-  /* ── Modals ───────────────────────────────── */
-  .modal-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.4);
-    z-index: 200;
-    display: flex; align-items: center; justify-content: center;
-    opacity: 0; pointer-events: none; transition: opacity 0.2s;
-  }
-  .modal-overlay.open { opacity: 1; pointer-events: all; }
-  .modal {
-    background: white; border-radius: 12px; padding: 24px;
-    width: 460px; max-height: 86vh; overflow-y: auto;
-    border: 1px solid var(--border);
-    transform: translateY(10px); transition: transform 0.2s;
-  }
-  .modal-overlay.open .modal { transform: translateY(0); }
-  .modal-title { font-size: 15px; font-weight: 700; margin-bottom: 3px; }
-  .modal-sub   { font-size: 12px; color: var(--text-muted); margin-bottom: 20px; }
-  .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
-
-  .form-group { margin-bottom: 14px; }
-  .form-label {
-    display: block; font-size: 11px; font-weight: 700;
-    color: var(--text-muted); text-transform: uppercase;
-    letter-spacing: 0.4px; margin-bottom: 5px;
-  }
-  .form-input {
-    width: 100%; padding: 8px 10px;
-    border: 1px solid var(--border); border-radius: 6px;
-    font-size: 13px; background: white; transition: border-color 0.15s;
-    font-family: inherit;
-  }
-  .form-input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 2px rgba(0,101,164,0.1); }
-  .form-row  { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .form-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
-  .form-hint a { color: var(--blue); }
-
-  .score-section { background: var(--surface); border-radius: 8px; padding: 14px; margin-top: 4px; }
-  .score-section-title { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
-
-  /* ── Settings modal ───────────────────────── */
-  .settings-field  { position: relative; }
-  .settings-toggle {
-    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-    background: none; border: none; cursor: pointer;
-    color: var(--text-muted); font-size: 12px; padding: 2px 4px;
-  }
-
-  /* ── Jira modal ───────────────────────────── */
-  .jira-status {
-    display: flex; align-items: center; gap: 8px;
-    padding: 10px 12px; background: var(--surface);
-    border-radius: 7px; margin-bottom: 10px;
-  }
-  .jira-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  .jira-status-text { font-size: 12px; color: var(--text-muted); }
-  .progress-outer { height: 4px; background: var(--surface); border-radius: 2px; overflow: hidden; margin-bottom: 16px; }
-  .progress-inner { height: 4px; background: var(--jira-blue); border-radius: 2px; transition: width 0.5s ease; }
-
-  .fetched-list { border: 1px solid var(--border); border-radius: 7px; max-height: 220px; overflow-y: auto; }
-  .fetched-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 9px 12px; border-bottom: 1px solid var(--border);
-    cursor: pointer; transition: background 0.1s;
-  }
-  .fetched-item:last-child { border-bottom: none; }
-  .fetched-item:hover { background: var(--surface); }
-  .fetched-item input[type=checkbox] { cursor: pointer; flex-shrink: 0; }
-  .fetched-key  { font-size: 11px; font-weight: 700; color: var(--jira-blue); font-family: monospace; }
-  .fetched-name { font-size: 12px; font-weight: 500; color: var(--text); }
-  .fetched-meta { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
-
-  .select-all-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: var(--text-muted); }
-  .select-all-row span { margin-left: auto; font-size: 11px; }
-
-  /* ── Notices ──────────────────────────────── */
-  .notice { padding: 10px 12px; border-radius: 7px; font-size: 12px; line-height: 1.5; margin-bottom: 12px; }
-  .notice-info    { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
-  .notice-warn    { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
-  .notice-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
-  .notice-error   { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-
-  .api-key-needed {
-    display: flex; align-items: flex-start; gap: 10px;
-    padding: 12px 14px; background: #fffbeb;
-    border: 1px solid #fde68a; border-radius: 8px; margin-bottom: 16px;
-  }
-  .api-key-needed svg { flex-shrink: 0; margin-top: 1px; }
-  .api-key-needed p   { font-size: 12px; color: #92400e; line-height: 1.5; }
-  .api-key-needed a   { color: var(--blue); font-weight: 600; }
-
-  /* ── Toast ────────────────────────────────── */
-  .toast {
-    position: fixed; bottom: 24px; right: 24px;
-    background: var(--blue-dark); color: white;
-    padding: 10px 16px; border-radius: 8px; font-size: 13px;
-    z-index: 999; opacity: 0; transform: translateY(8px);
-    transition: all 0.25s; pointer-events: none;
-    max-width: 340px;
-  }
-  .toast.show { opacity: 1; transform: translateY(0); }
-  .toast.error { background: #991b1b; }
-
-  .sort-select {
-    padding: 5px 8px; border-radius: 5px; border: 1px solid var(--border-strong);
-    font-size: 11px; background: var(--card); color: var(--text);
-    cursor: pointer; font-family: inherit;
-  }
-  .sort-select:focus { outline: none; border-color: var(--blue); }
-
-  .move-btn {
-    width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--border);
-    background: var(--surface); cursor: pointer;
-    display: inline-flex; align-items: center; justify-content: center;
-    color: var(--text-muted); transition: all 0.12s; flex-shrink: 0;
-  }
-  .move-btn:hover   { background: var(--blue-dark); color: white; border-color: var(--blue-dark); }
-  .move-btn:disabled { opacity: 0.25; cursor: not-allowed; pointer-events: none; }
-  .move-btn svg     { width: 11px; height: 11px; }
-  .matrix-wrap {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    margin-bottom: 16px;
-    overflow: hidden;
-  }
-  .matrix-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--border);
-    cursor: pointer;
-    user-select: none;
-  }
-  .matrix-header:hover { background: #fafbfc; }
-  .matrix-title-row { display: flex; align-items: center; gap: 8px; }
-  .matrix-title { font-size: 12px; font-weight: 700; color: var(--text); }
-  .matrix-subtitle { font-size: 11px; color: var(--text-muted); }
-  .matrix-toggle-icon { width: 16px; height: 16px; color: var(--text-muted); transition: transform 0.2s; }
-  .matrix-toggle-icon.open { transform: rotate(180deg); }
-  .matrix-body { padding: 12px 16px 16px; }
-  .matrix-canvas-wrap {
-    position: relative;
-    width: 100%;
-  }
-  #matrixCanvas {
-    display: block;
-    width: 100%;
-    cursor: crosshair;
-  }
-  .matrix-tooltip {
-    position: absolute;
-    background: var(--blue-dark);
-    color: white;
-    font-size: 11px;
-    line-height: 1.5;
-    padding: 6px 10px;
-    border-radius: 6px;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.15s;
-    white-space: nowrap;
-    z-index: 10;
-    max-width: 220px;
-    white-space: normal;
-  }
-  .matrix-tooltip.visible { opacity: 1; }
-  .matrix-empty {
-    text-align: center;
-    padding: 32px 16px;
-    font-size: 12px;
-    color: var(--text-muted);
-  }
-  .matrix-legend {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid var(--border);
-  }
-  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-muted); }
-  .legend-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-
-  /* ── Print ────────────────────────────────── */
-  @media print {
-    .topbar, .toolbar, .side-panel, .modal-overlay { display: none !important; }
-    .layout { grid-template-columns: 1fr; height: auto; }
-    .main-panel { padding: 0; overflow: visible; }
-  }
+:root{--blue:#0065A4;--blue-dark:#00263E;--orange:#FD9D0D;--surface:#f5f6f8;--card:#fff;--border:#e2e4e9;--border-strong:#c8ccd6;--text:#1a1d23;--text-muted:#6b7280;--text-light:#9ca3af;--green:#16a34a;--red:#dc2626;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--surface);color:var(--text);min-height:100vh;font-size:13px;}
+.topbar{background:var(--blue-dark);padding:0 20px;height:50px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;border-bottom:2px solid var(--orange);}
+.logo-badge{background:#0052cc;color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:3px;letter-spacing:.5px;}
+.topbar-title{color:#fff;font-size:14px;font-weight:600;}
+.topbar-sep{width:1px;height:18px;background:rgba(255,255,255,.2);}
+.session-chip{background:rgba(255,255,255,.12);color:rgba(255,255,255,.8);font-size:11px;padding:3px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.2);max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.topbar-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.8);padding:5px 11px;border-radius:5px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:background .15s;font-family:inherit;}
+.topbar-btn:hover{background:rgba(255,255,255,.2);}
+.topbar-btn svg{width:13px;height:13px;}
+.layout{display:flex;height:calc(100vh - 50px);}
+.main-panel{flex:1;overflow-y:auto;padding:24px 28px;}
+.sessions-sidebar{width:280px;background:var(--card);border-left:1px solid var(--border);overflow-y:auto;display:none;flex-direction:column;}
+.sessions-sidebar.open{display:flex;}
+.hero{margin-bottom:20px;}
+.hero h1{font-size:22px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.hero p{font-size:13px;color:var(--text-muted);line-height:1.5;}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;}
+.kpi-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin-bottom:6px;}
+.kpi-value{font-size:26px;font-weight:700;color:var(--text);line-height:1;margin-bottom:4px;}
+.kpi-value.blue{color:var(--blue);}
+.kpi-value.green{color:var(--green);}
+.kpi-sub{font-size:11px;color:var(--text-muted);}
+.action-bar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all .15s;font-family:inherit;white-space:nowrap;}
+.btn svg{width:13px;height:13px;flex-shrink:0;}
+.btn:disabled{opacity:.4;cursor:not-allowed;pointer-events:none;}
+.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue);}
+.btn-primary:hover{background:#004d80;}
+.btn-secondary{background:var(--card);color:var(--text);border-color:var(--border-strong);}
+.btn-secondary:hover{background:var(--surface);}
+.btn-danger{background:#fff;color:var(--red);border-color:#fca5a5;}
+.btn-danger:hover{background:#fef2f2;}
+.dropdown{position:relative;display:inline-flex;}
+.dropdown-menu{position:absolute;top:calc(100% + 4px);left:0;background:var(--card);border:1px solid var(--border);border-radius:8px;min-width:160px;z-index:50;box-shadow:0 4px 12px rgba(0,0,0,.1);overflow:hidden;display:none;}
+.dropdown-menu.open{display:block;}
+.dropdown-item{padding:9px 14px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .1s;}
+.dropdown-item:hover{background:var(--surface);}
+.dropdown-item svg{width:13px;height:13px;color:var(--text-muted);}
+.sort-bar{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.sort-label{font-size:11px;color:var(--text-muted);}
+.sort-select{padding:5px 8px;border-radius:5px;border:1px solid var(--border-strong);font-size:11px;background:var(--card);color:var(--text);cursor:pointer;font-family:inherit;}
+.formula-bar{background:linear-gradient(135deg,#f8fbff 0%,#f0f7ff 100%);border:1px solid #d0e4f4;border-radius:12px;padding:18px 24px;margin-bottom:14px;}
+.formula-row{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;}
+.f-card{display:flex;flex-direction:column;align-items:center;justify-content:center;width:88px;height:82px;border-radius:10px;background:#2d9e4f;color:#fff;gap:6px;flex-shrink:0;box-shadow:0 2px 8px rgba(45,158,79,.25);}
+.f-card svg{width:30px;height:30px;opacity:.95;}
+.f-card-label{font-size:11px;font-weight:700;letter-spacing:.3px;text-align:center;line-height:1.1;}
+.f-card.effort{background:#238f43;}
+.f-operator{font-size:22px;font-weight:300;color:#4b8fcc;padding:0 10px;line-height:1;margin-top:-8px;}
+.f-divider-wrap{display:flex;flex-direction:column;align-items:center;margin-top:-8px;}
+.f-numerator{display:flex;align-items:center;gap:0;}
+.f-fraction-line{width:100%;height:2px;background:#4b8fcc;margin:4px 0;border-radius:2px;}
+.f-equals{font-size:22px;font-weight:300;color:#4b8fcc;padding:0 12px;margin-top:-8px;}
+.f-result-badge{display:flex;flex-direction:column;align-items:center;gap:3px;margin-top:-8px;}
+.f-result-text{font-size:15px;font-weight:800;color:#00263E;letter-spacing:.5px;white-space:nowrap;}
+.f-result-sub{font-size:10px;color:var(--text-muted);letter-spacing:.3px;text-transform:uppercase;}
+.section-card{background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;overflow:hidden;}
+.section-header{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;cursor:pointer;user-select:none;transition:background .12s;}
+.section-header:hover{background:#fafbfc;}
+.section-header.open{border-bottom:1px solid var(--border);}
+.section-header-left{display:flex;align-items:center;gap:10px;}
+.section-title{font-size:13px;font-weight:600;}
+.section-badge{background:var(--blue);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;}
+.section-chevron{color:var(--text-muted);transition:transform .2s;}
+.section-chevron.open{transform:rotate(180deg);}
+.section-body{display:none;}
+.section-body.open{display:block;}
+table{width:100%;border-collapse:collapse;table-layout:fixed;}
+thead tr{background:#f8f9fb;border-bottom:1px solid var(--border);}
+th{padding:9px 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);text-align:left;}
+th.center,td.center{text-align:center;}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:#fafbfc;}
+tbody tr.top-row{background:#f0f7ff;}
+td{padding:8px 10px;vertical-align:middle;}
+.rank-badge{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;}
+.rank-1{background:#fef3c7;color:#92400e;}.rank-2{background:#f3f4f6;color:#374151;}.rank-3{background:#fde8c8;color:#78350f;}.rank-n{background:var(--surface);color:var(--text-muted);}
+.item-name{font-size:13px;font-weight:500;color:var(--text);}
+.item-desc{font-size:11px;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;}
+.type-badge{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-right:4px;}
+.type-epic{background:#f3e8ff;color:#7e22ce;}.type-story{background:#dcfce7;color:#166534;}.type-task{background:#e0f2fe;color:#075985;}.type-manual{background:#f1f5f9;color:#475569;}.type-bug{background:#fee2e2;color:#991b1b;}
+.score-input{width:54px;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;text-align:center;background:#fff;transition:border-color .15s,box-shadow .15s;}
+.score-input:focus{outline:none;}
+.score-input.reach:focus{border-color:#8b5cf6;box-shadow:0 0 0 2px rgba(139,92,246,.12);}
+.score-input.impact:focus{border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.12);}
+.score-input.conf:focus{border-color:#10b981;box-shadow:0 0 0 2px rgba(16,185,129,.12);}
+.score-input.effort:focus{border-color:#f59e0b;box-shadow:0 0 0 2px rgba(245,158,11,.12);}
+.rice-score{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;}
+.rice-score.high{color:#166534;}.rice-score.med{color:#92400e;}.rice-score.low{color:var(--text-muted);}.rice-score.none{color:var(--text-light);font-size:13px;font-weight:400;}
+.score-bar-wrap{width:56px;height:4px;background:var(--surface);border-radius:2px;display:block;margin-top:4px;}
+.score-bar{height:4px;border-radius:2px;transition:width .4s ease;}
+.action-cell{display:flex;align-items:center;justify-content:center;gap:2px;}
+.action-btn{width:26px;height:26px;border-radius:5px;border:none;background:transparent;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--text-muted);transition:all .15s;}
+.action-btn:hover{background:#fee2e2;color:var(--red);}
+.action-btn.edit:hover{background:#eff6ff;color:var(--blue);}
+.action-btn svg{width:13px;height:13px;}
+.move-btn{width:22px;height:22px;border-radius:4px;border:1px solid var(--border);background:var(--surface);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--text-muted);transition:all .12s;flex-shrink:0;}
+.move-btn:hover{background:var(--blue-dark);color:#fff;border-color:var(--blue-dark);}
+.move-btn:disabled{opacity:.25;cursor:not-allowed;pointer-events:none;}
+.move-btn svg{width:11px;height:11px;}
+.key-link{font-size:11px;font-weight:700;color:#0052cc;font-family:monospace;text-decoration:none;display:inline-flex;align-items:center;gap:3px;}
+.key-link:hover{text-decoration:underline;}
+.key-link svg{width:10px;height:10px;opacity:.6;}
+.key-plain{font-size:11px;font-weight:700;color:#0052cc;font-family:monospace;}
+.empty-state{padding:52px 24px;text-align:center;}
+.empty-icon{font-size:36px;margin-bottom:12px;}
+.empty-title{font-size:15px;font-weight:600;margin-bottom:6px;}
+.empty-sub{font-size:13px;color:var(--text-muted);margin-bottom:22px;}
+.matrix-body{padding:12px 16px 16px;}
+.matrix-canvas-wrap{position:relative;width:100%;}
+#matrixCanvas{display:block;width:100%;cursor:crosshair;}
+.matrix-tooltip{position:absolute;background:var(--blue-dark);color:#fff;font-size:11px;line-height:1.5;padding:6px 10px;border-radius:6px;pointer-events:none;opacity:0;transition:opacity .15s;white-space:normal;z-index:10;max-width:200px;}
+.matrix-tooltip.visible{opacity:1;}
+.matrix-empty{text-align:center;padding:32px;font-size:12px;color:var(--text-muted);}
+.matrix-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted);}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.sessions-header{padding:16px 16px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.sessions-header-title{font-size:14px;font-weight:700;}
+.sessions-close{background:none;border:none;cursor:pointer;color:var(--text-muted);padding:4px;border-radius:4px;display:flex;}
+.sessions-close:hover{background:var(--surface);}
+.storage-bar-wrap{padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.storage-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:6px;display:flex;justify-content:space-between;}
+.storage-track{height:5px;background:var(--surface);border-radius:3px;overflow:hidden;}
+.storage-fill{height:5px;background:var(--blue);border-radius:3px;transition:width .3s;}
+.sessions-list{flex:1;overflow-y:auto;padding:8px;}
+.session-item{padding:10px 12px;border-radius:8px;border:1px solid var(--border);margin-bottom:6px;}
+.session-item-name{font-size:12px;font-weight:600;color:var(--text);margin-bottom:3px;}
+.session-item-meta{font-size:11px;color:var(--text-muted);}
+.session-item-actions{display:flex;gap:4px;margin-top:8px;}
+.session-empty{padding:24px 16px;text-align:center;font-size:12px;color:var(--text-muted);line-height:1.6;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:#fff;border-radius:12px;padding:24px;width:460px;max-height:86vh;overflow-y:auto;border:1px solid var(--border);transform:translateY(10px);transition:transform .2s;}
+.modal-overlay.open .modal{transform:translateY(0);}
+.modal.narrow{width:380px;}
+.modal-title{font-size:15px;font-weight:700;margin-bottom:3px;}
+.modal-sub{font-size:12px;color:var(--text-muted);margin-bottom:20px;}
+.modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+.form-group{margin-bottom:14px;}
+.form-label{display:block;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px;}
+.form-input{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:#fff;transition:border-color .15s;font-family:inherit;}
+.form-input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 2px rgba(0,101,164,.1);}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.form-hint{font-size:11px;color:var(--text-muted);margin-top:4px;}
+.score-section{background:var(--surface);border-radius:8px;padding:14px;margin-top:4px;}
+.score-section-title{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;}
+.notice-warn{background:#fffbeb;color:#92400e;border:1px solid #fde68a;padding:10px 12px;border-radius:7px;font-size:12px;line-height:1.5;margin-bottom:12px;}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--blue-dark);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:999;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;max-width:340px;}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast.error{background:#991b1b;}
+@media print{.topbar,.action-bar,.sort-bar,.sessions-sidebar,.modal-overlay{display:none!important;}.layout{height:auto;}.main-panel{overflow:visible;padding:0;}}
 </style>
 </head>
 <body>
-
-<!-- ── Top bar ── -->
 <header class="topbar">
-  <div style="display:flex;align-items:center;gap:8px">
-    <div class="logo-badge">JIRA</div>
-    <div class="topbar-title">RICE Score Calculator</div>
-  </div>
+  <div class="logo-badge">RICE</div>
+  <div class="topbar-title">RICE Score Calculator</div>
   <div class="topbar-sep"></div>
-  <div class="topbar-sub">Project Prioritization</div>
+  <div class="session-chip" id="sessionChip">Unsaved session</div>
   <div class="topbar-right">
-    <div class="conn-dot" id="connDot"></div>
-    <div class="conn-label" id="connLabel">Not connected</div>
-    <button class="topbar-btn" onclick="openSettings()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      Settings
+    <button class="topbar-btn" onclick="toggleSessions()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Sessions
+    </button>
+    <button class="topbar-btn" onclick="openModal('settingsModal')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings
     </button>
   </div>
 </header>
-
-<!-- ── Main layout ── -->
 <div class="layout">
-
-  <!-- Main panel -->
   <main class="main-panel">
-
-    <!-- Formula bar -->
+    <div class="hero">
+      <h1>RICE Prioritization</h1>
+      <p>Balance Reach, Impact, Confidence, and Effort to make data-driven roadmap decisions.</p>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-label">Average RICE</div><div class="kpi-value blue" id="kpi-avg">—</div><div class="kpi-sub" id="kpi-avg-sub">No scored items</div></div>
+      <div class="kpi-card"><div class="kpi-label">High Priority</div><div class="kpi-value" id="kpi-high">0</div><div class="kpi-sub" id="kpi-high-sub">Score ≥ 50</div></div>
+      <div class="kpi-card"><div class="kpi-label">Quick Wins</div><div class="kpi-value green" id="kpi-qw">0</div><div class="kpi-sub">High impact, low effort</div></div>
+      <div class="kpi-card"><div class="kpi-label">Top Item</div><div class="kpi-value" id="kpi-top" style="font-size:14px;line-height:1.3">—</div><div class="kpi-sub" id="kpi-top-sub"></div></div>
+    </div>
     <div class="formula-bar">
-      <span class="formula-label">RICE Formula</span>
-      <div class="formula-eq">
-        <span class="f-var f-reach">Reach</span>
-        <span class="f-op">×</span>
-        <span class="f-var f-impact">Impact</span>
-        <span class="f-op">×</span>
-        <span class="f-var f-conf">Confidence %</span>
-        <span class="f-op">÷</span>
-        <span class="f-var f-effort">Effort</span>
-        <span class="f-op">=</span>
-        <span class="f-result">RICE Score</span>
-      </div>
-    </div>
-
-    <!-- Value vs. Effort Matrix -->
-    <div class="matrix-wrap" id="matrixWrap">
-      <div class="matrix-header" onclick="toggleMatrix()">
-        <div class="matrix-title-row">
-          <span class="matrix-title">Value vs. Effort Matrix</span>
-          <span class="matrix-subtitle">X = Reach × Impact × Confidence% &nbsp;·&nbsp; Y = Effort</span>
+      <div class="formula-row">
+        <!-- numerator -->
+        <div class="f-divider-wrap">
+          <div class="f-numerator">
+            <!-- Reach -->
+            <div class="f-card">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="3"/><path d="M6 20v-1a6 6 0 0 1 12 0v1"/><circle cx="3.5" cy="10" r="2"/><path d="M1 20v-1a4 4 0 0 1 5.2-3.8"/><circle cx="20.5" cy="10" r="2"/><path d="M23 20v-1a4 4 0 0 0-5.2-3.8"/></svg>
+              <span class="f-card-label">Reach</span>
+            </div>
+            <span class="f-operator">×</span>
+            <!-- Impact -->
+            <div class="f-card">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><path d="m4.93 4.93 2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/></svg>
+              <span class="f-card-label">Impact</span>
+            </div>
+            <span class="f-operator">×</span>
+            <!-- Confidence -->
+            <div class="f-card">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <span class="f-card-label">Confidence</span>
+            </div>
+          </div>
+          <div class="f-fraction-line" style="width:302px"></div>
+          <!-- Effort -->
+          <div class="f-card effort" style="margin-top:6px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/></svg>
+            <span class="f-card-label">Efforts</span>
+          </div>
         </div>
-        <svg class="matrix-toggle-icon open" id="matrixToggleIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>
-      </div>
-      <div class="matrix-body" id="matrixBody">
-        <div class="matrix-empty" id="matrixEmpty">Add and score items to see them plotted here.</div>
-        <div class="matrix-canvas-wrap" id="matrixCanvasWrap" style="display:none">
-          <canvas id="matrixCanvas"></canvas>
-          <div class="matrix-tooltip" id="matrixTooltip"></div>
-        </div>
-        <div class="matrix-legend" id="matrixLegend" style="display:none">
-          <div class="legend-item"><div class="legend-dot" style="background:#c0392b"></div>Time Sinks — high effort, low value</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#0065A4"></div>Big Projects — high effort, high value</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#888896"></div>Fill-ins — low effort, low value</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#16a34a"></div>Quick Wins — low effort, high value</div>
+        <span class="f-equals">=</span>
+        <div class="f-result-badge">
+          <span class="f-result-text">RICE SCORE</span>
+          <span class="f-result-sub">Priority Index</span>
         </div>
       </div>
     </div>
-
-    <!-- Toolbar -->
-    <div class="toolbar">
-      <button class="btn btn-jira" onclick="openJiraModal()">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.53 2.06L6.29 7.3a1 1 0 0 0 0 1.41L9.5 12l-3.21 3.29a1 1 0 0 0 0 1.41l5.24 5.24a.99.99 0 0 0 1.41 0l5.24-5.24a1 1 0 0 0 0-1.41L14.97 12l3.22-3.29a1 1 0 0 0 0-1.41l-5.24-5.24a1 1 0 0 0-1.42 0z"/></svg>
-        Load from Jira
-      </button>
-      <button class="btn btn-secondary" onclick="openAddModal()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Add Item
-      </button>
-      <button class="btn btn-secondary" onclick="exportCSV()" id="exportBtn" disabled>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Export CSV
-      </button>
-      <button class="btn btn-danger" onclick="clearAll()" id="clearBtn" disabled>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-        Clear All
-      </button>
-      <div class="toolbar-right">
-        <span class="sort-label">Sort by</span>
-        <select class="sort-select" id="sortSelect" onchange="setSort(this.value)">
-          <option value="score">RICE Score</option>
-          <option value="manual">Manual Order ↕</option>
-          <option value="key">Jira Key</option>
-          <option value="name">Name</option>
-          <option value="reach">Reach</option>
-          <option value="impact">Impact</option>
-          <option value="conf">Confidence %</option>
-          <option value="effort">Effort</option>
-        </select>
+    <div class="action-bar">
+      <button class="btn btn-primary" onclick="openAddModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Item</button>
+      <button class="btn btn-secondary" onclick="openSaveSessionModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Save Session</button>
+      <button class="btn btn-secondary" onclick="toggleSessions()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>Load Session</button>
+      <div class="dropdown" id="dd-import">
+        <button class="btn btn-secondary" onclick="toggleDropdown('dd-import')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px"><polyline points="6 9 12 15 18 9"/></svg></button>
+        <div class="dropdown-menu" id="dd-import-menu"><div class="dropdown-item" onclick="triggerImportJSON()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>Import JSON</div></div>
+      </div>
+      <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="handleImportJSON(this)">
+      <div class="dropdown" id="dd-export">
+        <button class="btn btn-secondary" id="exportBtn" disabled onclick="toggleDropdown('dd-export')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px"><polyline points="6 9 12 15 18 9"/></svg></button>
+        <div class="dropdown-menu" id="dd-export-menu">
+          <div class="dropdown-item" onclick="exportCSV();closeAllDropdowns()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>Export CSV</div>
+          <div class="dropdown-item" onclick="exportJSON();closeAllDropdowns()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>Export JSON</div>
+        </div>
+      </div>
+      <div style="margin-left:auto">
+        <button class="btn btn-danger" id="clearBtn" disabled onclick="openClearModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Clear All Data</button>
       </div>
     </div>
-
-    <!-- Table -->
-    <div class="items-table" id="tableWrap">
-      <table id="mainTable" style="display:none">
-        <thead>
-          <tr>
+    <div class="sort-bar">
+      <span class="sort-label">Sort by</span>
+      <select class="sort-select" id="sortSelect" onchange="setSort(this.value)">
+        <option value="score">RICE Score</option><option value="manual">Manual Order ↕</option>
+        <option value="key">Key</option><option value="name">Name</option>
+        <option value="reach">Reach</option><option value="impact">Impact</option>
+        <option value="conf">Confidence %</option><option value="effort">Effort</option>
+      </select>
+    </div>
+    <div class="section-card">
+      <div class="section-header open" id="tableHeader" onclick="toggleSection('table')">
+        <div class="section-header-left">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;color:var(--text-muted)"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+          <span class="section-title">Table View</span>
+          <span class="section-badge" id="tableBadge">0</span>
+        </div>
+        <svg class="section-chevron open" id="tableChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="section-body open" id="tableBody">
+        <table id="mainTable" style="display:none">
+          <thead><tr>
             <th style="width:36px">#</th>
-            <th style="width:50px" class="center" id="th-move" style="display:none"></th>
+            <th style="width:50px;display:none" class="center" id="th-move"></th>
             <th style="width:96px">Key</th>
             <th>Project / Item</th>
             <th style="width:60px" class="center">Reach</th>
@@ -594,1498 +278,559 @@
             <th style="width:62px" class="center">Effort</th>
             <th style="width:92px" class="center">RICE Score</th>
             <th style="width:60px" class="center"></th>
-          </tr>
-        </thead>
-        <tbody id="tbody"></tbody>
-      </table>
-      <div class="empty-state" id="emptyState">
-        <div class="empty-icon">📋</div>
-        <div class="empty-title">No items yet</div>
-        <div class="empty-sub">Load projects from Jira or add items manually to start scoring.</div>
-        <div class="empty-actions">
-          <button class="btn btn-jira" onclick="openJiraModal()">
-            <svg viewBox="0 0 24 24" fill="currentColor" style="width:13px;height:13px"><path d="M11.53 2.06L6.29 7.3a1 1 0 0 0 0 1.41L9.5 12l-3.21 3.29a1 1 0 0 0 0 1.41l5.24 5.24a.99.99 0 0 0 1.41 0l5.24-5.24a1 1 0 0 0 0-1.41L14.97 12l3.22-3.29a1 1 0 0 0 0-1.41l-5.24-5.24a1 1 0 0 0-1.42 0z"/></svg>
-            Load from Jira
-          </button>
-          <button class="btn btn-secondary" onclick="openAddModal()">Add Manually</button>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+        <div class="empty-state" id="emptyState">
+          <div class="empty-icon">📋</div>
+          <div class="empty-title">No items yet</div>
+          <div class="empty-sub">Add items manually or import a JSON file to get started.</div>
+          <button class="btn btn-primary" onclick="openAddModal()">+ Add Item</button>
         </div>
       </div>
     </div>
-
+    <div class="section-card">
+      <div class="section-header open" id="matrixHeader" onclick="toggleSection('matrix')">
+        <div class="section-header-left">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;color:var(--text-muted)"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          <span class="section-title">Priority Matrix</span>
+        </div>
+        <svg class="section-chevron open" id="matrixChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="section-body open" id="matrixBody">
+        <div class="matrix-body">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Visualize your initiatives across Impact and Effort dimensions</div>
+          <div class="matrix-empty" id="matrixEmpty">Add and score items to see them plotted here.</div>
+          <div class="matrix-canvas-wrap" id="matrixCanvasWrap" style="display:none">
+            <canvas id="matrixCanvas"></canvas>
+            <div class="matrix-tooltip" id="matrixTooltip"></div>
+          </div>
+          <div class="matrix-legend" id="matrixLegend" style="display:none">
+            <div class="legend-item"><div class="legend-dot" style="background:#16a34a"></div>Quick Wins — high impact, low effort</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#0065A4"></div>Major Projects — high impact, high effort</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#888896"></div>Fill-ins — low impact, low effort</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#c0392b"></div>Time Sinks — low impact, high effort</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
-
-  <!-- Side panel -->
-  <aside class="side-panel">
-
-    <div class="side-section">
-      <div class="side-title">Summary</div>
-      <div class="kpi-grid">
-        <div class="kpi-card">
-          <div class="kpi-label">Total Items</div>
-          <div class="kpi-value blue" id="kpi-count">0</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">Scored</div>
-          <div class="kpi-value" id="kpi-scored">0</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">Top Score</div>
-          <div class="kpi-value" id="kpi-top">—</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">Avg Score</div>
-          <div class="kpi-value" id="kpi-avg">—</div>
-        </div>
-      </div>
+  <aside class="sessions-sidebar" id="sessionsSidebar">
+    <div class="sessions-header">
+      <div class="sessions-header-title">Workspace</div>
+      <button class="sessions-close" onclick="toggleSessions()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
-
-    <div class="side-section">
-      <div class="side-title">Priority Ranking</div>
-      <ol class="rank-list" id="rankList">
-        <li style="font-size:12px;color:var(--text-muted);padding:8px 0">Score items to see ranking</li>
-      </ol>
+    <div class="storage-bar-wrap">
+      <div class="storage-label"><span>Storage Used</span><span id="storageKb">0 KB</span></div>
+      <div class="storage-track"><div class="storage-fill" id="storageFill" style="width:0%"></div></div>
     </div>
-
-    <div class="side-section">
-      <div class="side-title">Scoring Guide</div>
-      <div style="font-size:12px;color:var(--text-muted);line-height:1.7;margin-bottom:10px">
-        <strong style="color:var(--text)">Reach</strong> — users impacted per quarter<br>
-        <strong style="color:var(--text)">Impact</strong> — use scale: 0.25 / 0.5 / 1 / 2 / 3<br>
-        <strong style="color:var(--text)">Confidence</strong> — enter as % (e.g. 80)<br>
-        <strong style="color:var(--text)">Effort</strong> — person-months to ship
-      </div>
-      <div class="guide-row"><div class="guide-dot" style="background:#16a34a"></div><span><strong>High ≥ 50</strong> — strong candidate, prioritize</span></div>
-      <div class="guide-row"><div class="guide-dot" style="background:#ca8a04"></div><span><strong>Med 20–49</strong> — evaluate tradeoffs carefully</span></div>
-      <div class="guide-row"><div class="guide-dot" style="background:#ef4444"></div><span><strong>Low &lt; 20</strong> — deprioritize or cut scope</span></div>
-    </div>
-
-    <div class="side-section">
-      <div class="side-title">Impact Scale Reference</div>
-      <div style="font-size:12px;color:var(--text-muted);line-height:1.9">
-        <span style="font-weight:600;color:var(--text)">3.0</span> — Massive impact<br>
-        <span style="font-weight:600;color:var(--text)">2.0</span> — High impact<br>
-        <span style="font-weight:600;color:var(--text)">1.0</span> — Medium impact<br>
-        <span style="font-weight:600;color:var(--text)">0.5</span> — Low impact<br>
-        <span style="font-weight:600;color:var(--text)">0.25</span> — Minimal impact
-      </div>
-    </div>
-
+    <div class="sessions-list" id="sessionsList"></div>
   </aside>
 </div>
-
-<!-- ── Toast ── -->
 <div class="toast" id="toast"></div>
 
-<!-- ── Settings Modal ── -->
-<div class="modal-overlay" id="settingsModal">
-  <div class="modal">
-    <div class="modal-title">Settings</div>
-    <div class="modal-sub">Configure API credentials for Jira integration</div>
-
-    <div class="notice notice-info">
-      Your API key is stored only in <code>localStorage</code> in your browser and never sent anywhere except the Anthropic API. It is never logged or persisted on any server.
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">Anthropic API Key</label>
-      <div class="settings-field">
-        <input class="form-input" id="settings-apikey" type="password" placeholder="sk-ant-api03-..." />
-        <button class="settings-toggle" onclick="toggleApiKeyVisibility()" id="toggleApiBtn">Show</button>
-      </div>
-      <div class="form-hint">
-        Get your key at <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>.
-        Required for the "Load from Jira" feature.
-      </div>
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">Atlassian MCP URL</label>
-      <input class="form-input" id="settings-mcpurl" value="https://mcp.atlassian.com/v1/mcp" />
-      <div class="form-hint">Default is the official Atlassian Rovo MCP endpoint. Only change if using a self-hosted instance.</div>
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">Default Issue Type</label>
-      <select class="form-input" id="settings-issuetype">
-        <option value="Epic">Epic</option>
-        <option value="Story">Story</option>
-        <option value="Task">Task</option>
-        <option value="any">Any</option>
-      </select>
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">Manual Priority Adjustment Rate</label>
-      <select class="form-input" id="settings-adjrate">
-        <option value="0.03">3% per step</option>
-        <option value="0.05" selected>5% per step (default)</option>
-        <option value="0.08">8% per step</option>
-        <option value="0.10">10% per step</option>
-        <option value="0.15">15% per step</option>
-      </select>
-      <div class="form-hint">When you move an item up/down in Manual Order, Reach, Impact, and Confidence adjust by this percentage.</div>
-    </div>
-
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal('settingsModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
-    </div>
+<!-- Settings -->
+<div class="modal-overlay" id="settingsModal"><div class="modal narrow">
+  <div class="modal-title">Settings</div><div class="modal-sub">Customize calculator behaviour</div>
+  <div class="form-group">
+    <label class="form-label">Manual Priority Adjustment Rate</label>
+    <select class="form-input" id="settings-adjrate">
+      <option value="0.03">3% per step</option><option value="0.05" selected>5% per step (default)</option>
+      <option value="0.08">8% per step</option><option value="0.10">10% per step</option><option value="0.15">15% per step</option>
+    </select>
+    <div class="form-hint">When moving items in Manual Order, R/I/C adjust by this amount per step.</div>
   </div>
-</div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" onclick="closeModal('settingsModal')">Cancel</button>
+    <button class="btn btn-primary" onclick="saveSettings()">Save</button>
+  </div>
+</div></div>
 
-<!-- ── Add Item Modal ── -->
-<div class="modal-overlay" id="addModal">
-  <div class="modal">
-    <div class="modal-title">Add Item</div>
-    <div class="modal-sub">Add a project or initiative manually</div>
-
-    <div class="form-group">
-      <label class="form-label">Item Name <span style="color:var(--red)">*</span></label>
-      <input class="form-input" id="inp-name" placeholder="e.g. Revamp checkout flow" />
+<!-- Add Item -->
+<div class="modal-overlay" id="addModal"><div class="modal">
+  <div class="modal-title">Add Item</div><div class="modal-sub">Add a project or initiative to score</div>
+  <div class="form-group"><label class="form-label">Item Name <span style="color:var(--red)">*</span></label><input class="form-input" id="inp-name" placeholder="e.g. Dark Mode Support"/></div>
+  <div class="form-row">
+    <div class="form-group"><label class="form-label">Key</label><input class="form-input" id="inp-key" placeholder="e.g. SB-2161"/></div>
+    <div class="form-group"><label class="form-label">Type</label><select class="form-input" id="inp-type"><option value="manual">Manual</option><option value="epic">Epic</option><option value="story">Story</option><option value="task">Task</option><option value="bug">Bug</option></select></div>
+  </div>
+  <div class="form-group"><label class="form-label">URL (auto-extracts key)</label><input class="form-input" id="inp-keyurl" placeholder="https://yourorg.atlassian.net/browse/SB-2161" oninput="autoExtractKey('inp-keyurl','inp-key')"/></div>
+  <div class="form-group"><label class="form-label">Description</label><input class="form-input" id="inp-desc" placeholder="Brief description (optional)"/></div>
+  <div class="score-section"><div class="score-section-title">RICE Scores — optional, fill in table later</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label" style="color:#7c3aed">Reach</label><input class="form-input" id="inp-reach" type="number" min="0" step="1" placeholder="users / quarter"/></div>
+      <div class="form-group"><label class="form-label" style="color:#1d4ed8">Impact</label><input class="form-input" id="inp-impact" type="number" min="0" max="3" step="0.25" placeholder="0.25 – 3"/></div>
     </div>
     <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Jira Key</label>
-        <input class="form-input" id="inp-key" placeholder="e.g. SB-2161" />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Type</label>
-        <select class="form-input" id="inp-type">
-          <option value="manual">Manual</option>
-          <option value="epic">Epic</option>
-          <option value="story">Story</option>
-          <option value="task">Task</option>
-          <option value="bug">Bug</option>
-        </select>
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Jira URL</label>
-      <input class="form-input" id="inp-keyurl" placeholder="https://mersgoodwill.atlassian.net/browse/SB-2161"
-        oninput="autoExtractKey('inp-keyurl','inp-key')" />
-      <div class="form-hint">Paste the full Jira link — the key will be auto-filled from the URL.</div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Description</label>
-      <input class="form-input" id="inp-desc" placeholder="Brief description (optional)" />
-    </div>
-
-    <div class="score-section">
-      <div class="score-section-title">RICE Scores (optional — can fill in table later)</div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label" style="color:#7c3aed">Reach</label>
-          <input class="form-input" id="inp-reach" type="number" min="0" step="1" placeholder="users / quarter" />
-          <div class="form-hint">Users impacted per quarter</div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" style="color:#1d4ed8">Impact</label>
-          <input class="form-input" id="inp-impact" type="number" min="0" max="3" step="0.25" placeholder="0.25 – 3" />
-          <div class="form-hint">0.25 / 0.5 / 1 / 2 / 3</div>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label" style="color:#15803d">Confidence %</label>
-          <input class="form-input" id="inp-conf" type="number" min="0" max="100" step="5" placeholder="0 – 100" />
-          <div class="form-hint">How certain are you?</div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" style="color:#92400e">Effort</label>
-          <input class="form-input" id="inp-effort" type="number" min="0.1" step="0.5" placeholder="person-months" />
-          <div class="form-hint">Person-months to ship</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal('addModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitAddItem()">Add Item</button>
+      <div class="form-group"><label class="form-label" style="color:#15803d">Confidence %</label><input class="form-input" id="inp-conf" type="number" min="0" max="100" step="5" placeholder="0 – 100"/></div>
+      <div class="form-group"><label class="form-label" style="color:#92400e">Effort</label><input class="form-input" id="inp-effort" type="number" min="0.1" step="0.5" placeholder="person-months"/></div>
     </div>
   </div>
-</div>
+  <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('addModal')">Cancel</button><button class="btn btn-primary" onclick="submitAddItem()">Add Item</button></div>
+</div></div>
 
-<!-- ── Edit Item Modal ── -->
-<div class="modal-overlay" id="editModal">
-  <div class="modal">
-    <div class="modal-title">Edit Item</div>
-    <div class="modal-sub">Update the details and scores for this item</div>
-
-    <input type="hidden" id="edit-id" />
-
-    <div class="form-group">
-      <label class="form-label">Item Name <span style="color:var(--red)">*</span></label>
-      <input class="form-input" id="edit-name" placeholder="e.g. Revamp checkout flow" />
+<!-- Edit Item -->
+<div class="modal-overlay" id="editModal"><div class="modal">
+  <div class="modal-title">Edit Item</div><div class="modal-sub">Update this item's details and scores</div>
+  <input type="hidden" id="edit-id"/>
+  <div class="form-group"><label class="form-label">Item Name <span style="color:var(--red)">*</span></label><input class="form-input" id="edit-name"/></div>
+  <div class="form-row">
+    <div class="form-group"><label class="form-label">Key</label><input class="form-input" id="edit-key" placeholder="e.g. SB-2161"/></div>
+    <div class="form-group"><label class="form-label">Type</label><select class="form-input" id="edit-type"><option value="manual">Manual</option><option value="epic">Epic</option><option value="story">Story</option><option value="task">Task</option><option value="bug">Bug</option></select></div>
+  </div>
+  <div class="form-group"><label class="form-label">URL (auto-extracts key)</label><input class="form-input" id="edit-keyurl" placeholder="https://yourorg.atlassian.net/browse/SB-2161" oninput="autoExtractKey('edit-keyurl','edit-key')"/><div class="form-hint">Key renders as a clickable link in the table.</div></div>
+  <div class="form-group"><label class="form-label">Description</label><input class="form-input" id="edit-desc" placeholder="Brief description"/></div>
+  <div class="score-section"><div class="score-section-title">RICE Scores</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label" style="color:#7c3aed">Reach</label><input class="form-input" id="edit-reach" type="number" min="0" step="1"/></div>
+      <div class="form-group"><label class="form-label" style="color:#1d4ed8">Impact</label><input class="form-input" id="edit-impact" type="number" min="0" max="3" step="0.25"/></div>
     </div>
     <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Jira Key</label>
-        <input class="form-input" id="edit-key" placeholder="e.g. SB-2161" />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Type</label>
-        <select class="form-input" id="edit-type">
-          <option value="manual">Manual</option>
-          <option value="epic">Epic</option>
-          <option value="story">Story</option>
-          <option value="task">Task</option>
-          <option value="bug">Bug</option>
-        </select>
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Jira URL</label>
-      <input class="form-input" id="edit-keyurl" placeholder="https://mersgoodwill.atlassian.net/browse/SB-2161"
-        oninput="autoExtractKey('edit-keyurl','edit-key')" />
-      <div class="form-hint">Paste the full Jira link — the key will be auto-filled. The key shows as a clickable link in the table.</div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Description</label>
-      <input class="form-input" id="edit-desc" placeholder="Brief description (optional)" />
-    </div>
-
-    <div class="score-section">
-      <div class="score-section-title">RICE Scores</div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label" style="color:#7c3aed">Reach</label>
-          <input class="form-input" id="edit-reach" type="number" min="0" step="1" placeholder="users / quarter" />
-        </div>
-        <div class="form-group">
-          <label class="form-label" style="color:#1d4ed8">Impact</label>
-          <input class="form-input" id="edit-impact" type="number" min="0" max="3" step="0.25" placeholder="0.25 – 3" />
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label" style="color:#15803d">Confidence %</label>
-          <input class="form-input" id="edit-conf" type="number" min="0" max="100" step="5" placeholder="0 – 100" />
-        </div>
-        <div class="form-group">
-          <label class="form-label" style="color:#92400e">Effort</label>
-          <input class="form-input" id="edit-effort" type="number" min="0.1" step="0.5" placeholder="person-months" />
-        </div>
-      </div>
-    </div>
-
-    <div class="modal-footer">
-      <button class="btn btn-danger" style="margin-right:auto" onclick="deleteFromEdit()">Delete item</button>
-      <button class="btn btn-secondary" onclick="closeModal('editModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitEditItem()">Save Changes</button>
+      <div class="form-group"><label class="form-label" style="color:#15803d">Confidence %</label><input class="form-input" id="edit-conf" type="number" min="0" max="100" step="5"/></div>
+      <div class="form-group"><label class="form-label" style="color:#92400e">Effort</label><input class="form-input" id="edit-effort" type="number" min="0.1" step="0.5"/></div>
     </div>
   </div>
-</div>
+  <div class="modal-footer"><button class="btn btn-danger" style="margin-right:auto" onclick="deleteFromEdit()">Delete</button><button class="btn btn-secondary" onclick="closeModal('editModal')">Cancel</button><button class="btn btn-primary" onclick="submitEditItem()">Save Changes</button></div>
+</div></div>
 
-<!-- ── Jira Modal ── -->
-<div class="modal-overlay" id="jiraModal">
-  <div class="modal">
-    <div class="modal-title">Load from Jira</div>
-    <div class="modal-sub">Fetch issues from your Jira workspace via the Anthropic API + Atlassian MCP</div>
+<!-- Save Session -->
+<div class="modal-overlay" id="saveSessionModal"><div class="modal narrow">
+  <div class="modal-title">Save Session</div><div class="modal-sub">Name this RICE scoring session so you can load it later</div>
+  <div class="form-group"><label class="form-label">Session Name</label><input class="form-input" id="session-name-input" placeholder="e.g. Q3 Roadmap Planning"/></div>
+  <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('saveSessionModal')">Cancel</button><button class="btn btn-primary" onclick="saveSession()">Save Session</button></div>
+</div></div>
 
-    <!-- Step 1: query input -->
-    <div id="jiraStep1">
-      <div id="jiraApiWarning" class="api-key-needed" style="display:none">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400e" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <p>No API key configured. <a href="#" onclick="openSettings();closeModal('jiraModal');return false">Open Settings</a> to add your Anthropic API key before loading from Jira.</p>
-      </div>
-      <div class="notice notice-info">
-        Enter a Jira project key or describe the issues you want to score. The Atlassian Rovo MCP will retrieve live data from your Jira workspace.
-      </div>
-      <div class="form-group">
-        <label class="form-label">Project Key or Search Query</label>
-        <input class="form-input" id="jira-query" placeholder="e.g. PROJ, or 'mobile app features'" />
-        <div class="form-hint">Project key (e.g. MERS) for all issues in a project, or a free-text description.</div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Issue Type</label>
-          <select class="form-input" id="jira-type">
-            <option value="Epic">Epic</option>
-            <option value="Story">Story</option>
-            <option value="Task">Task</option>
-            <option value="any">Any</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Max Results</label>
-          <input class="form-input" id="jira-max" type="number" value="10" min="1" max="50" />
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeModal('jiraModal')">Cancel</button>
-        <button class="btn btn-jira" onclick="fetchFromJira()" id="jiraFetchBtn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          Fetch Issues
-        </button>
-      </div>
-    </div>
+<!-- Clear All -->
+<div class="modal-overlay" id="clearModal"><div class="modal narrow">
+  <div class="modal-title">Clear All Data</div><div class="modal-sub">This will permanently delete all items in the current session.</div>
+  <div class="notice-warn">This cannot be undone. Type the name of your current session to confirm.</div>
+  <div class="form-group"><label class="form-label">Session: <strong id="clearConfirmLabel"></strong></label><input class="form-input" id="clear-confirm-input" placeholder="Type session name to confirm" oninput="checkClearConfirm()"/></div>
+  <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('clearModal')">Cancel</button><button class="btn btn-danger" id="clearConfirmBtn" disabled onclick="executeClearAll()">Delete All</button></div>
+</div></div>
 
-    <!-- Step 2: results -->
-    <div id="jiraStep2" style="display:none">
-      <div class="jira-status">
-        <div class="jira-status-dot" id="jiraStatusDot" style="background:#f59e0b"></div>
-        <div class="jira-status-text" id="jiraStatusText">Connecting...</div>
-      </div>
-      <div class="progress-outer">
-        <div class="progress-inner" id="progressBar" style="width:0%"></div>
-      </div>
-
-      <div id="jiraResultsWrap" style="display:none">
-        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px" id="jiraResultsTitle"></div>
-        <div class="fetched-list" id="fetchedList"></div>
-        <div class="select-all-row">
-          <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this.checked)" checked />
-          <label for="selectAll">Select all</label>
-          <span id="selectedCount"></span>
-        </div>
-      </div>
-
-      <div id="jiraErrorWrap" style="display:none"></div>
-
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="resetJiraModal()">← Back</button>
-        <button class="btn btn-primary" id="importBtn" style="display:none" onclick="importSelected()">
-          Import Selected
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
+<!-- Import JSON -->
+<div class="modal-overlay" id="importModal"><div class="modal narrow">
+  <div class="modal-title">Import JSON</div><div class="modal-sub" id="importModalSub">Reviewing file…</div>
+  <div id="importPreview" style="background:var(--surface);border-radius:8px;padding:12px;font-size:12px;color:var(--text-muted);margin-bottom:4px;min-height:48px;"></div>
+  <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('importModal')">Cancel</button><button class="btn btn-primary" onclick="confirmImport()">Import</button></div>
+</div></div>
 
 <script>
-/* ================================================================
-   STATE
-================================================================ */
-let items    = [];
-let sortBy   = 'score';
-let nextId   = 1;
-let jiraFetchedItems = [];
+let items=[],sortBy='score',nextId=1,currentSessionName='Unsaved session',pendingImport=null,matrixOpen=true;
+const SK={items:'rice_items',settings:'rice_settings',sessions:'rice_sessions',sname:'rice_session_name'};
 
-const STORAGE_ITEMS    = 'rice_items';
-const STORAGE_SETTINGS = 'rice_settings';
+function getSettings(){try{return JSON.parse(localStorage.getItem(SK.settings))||{};}catch{return{};}}
+function saveSettings(){localStorage.setItem(SK.settings,JSON.stringify({adjRate:parseFloat(document.getElementById('settings-adjrate').value)||0.05}));closeModal('settingsModal');showToast('Settings saved.');}
 
-/* ================================================================
-   SETTINGS
-================================================================ */
-function getSettings() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_SETTINGS)) || {};
-  } catch { return {}; }
+function saveItems(){try{localStorage.setItem(SK.items,JSON.stringify(items));localStorage.setItem(SK.sname,currentSessionName);}catch{}updateStorage();}
+function loadItems(){
+  try{const s=JSON.parse(localStorage.getItem(SK.items));if(Array.isArray(s)&&s.length){items=s;nextId=Math.max(...items.map(i=>parseInt(i.id.replace('item-',''))||0))+1;}}catch{}
+  currentSessionName=localStorage.getItem(SK.sname)||'Unsaved session';
+  document.getElementById('sessionChip').textContent=currentSessionName;
+}
+function updateStorage(){
+  try{let b=0;for(let k in localStorage)if(localStorage.hasOwnProperty(k))b+=(localStorage[k].length+k.length)*2;
+  const kb=b/1024;document.getElementById('storageKb').textContent=kb.toFixed(1)+' KB';
+  document.getElementById('storageFill').style.width=Math.min(100,(kb/5120)*100)+'%';}catch{}
 }
 
-function openSettings() {
-  const s = getSettings();
-  document.getElementById('settings-apikey').value    = s.apiKey    || '';
-  document.getElementById('settings-mcpurl').value    = s.mcpUrl    || 'https://mcp.atlassian.com/v1/mcp';
-  document.getElementById('settings-issuetype').value = s.issueType || 'Epic';
-  document.getElementById('settings-adjrate').value   = s.adjRate   || '0.05';
-  document.getElementById('settingsModal').classList.add('open');
+/* Sessions */
+function getSessions(){try{return JSON.parse(localStorage.getItem(SK.sessions))||[];}catch{return[];}}
+function toggleSessions(){const s=document.getElementById('sessionsSidebar');s.classList.toggle('open');if(s.classList.contains('open'))renderSessions();}
+function renderSessions(){
+  updateStorage();
+  const sessions=getSessions(),list=document.getElementById('sessionsList');
+  if(!sessions.length){list.innerHTML='<div class="session-empty">No saved sessions yet.<br>Click <strong>Save Session</strong> to save the current state.</div>';return;}
+  list.innerHTML=sessions.slice().reverse().map(s=>`<div class="session-item">
+    <div class="session-item-name">${escHtml(s.name)}</div>
+    <div class="session-item-meta">${s.items.length} item${s.items.length!==1?'s':''} · ${new Date(s.savedAt).toLocaleDateString()}</div>
+    <div class="session-item-actions">
+      <button class="btn btn-primary" style="padding:4px 10px;font-size:11px" onclick="loadSession('${s.id}')">Load</button>
+      <button class="btn btn-danger" style="padding:4px 10px;font-size:11px" onclick="deleteSession('${s.id}')">Delete</button>
+    </div></div>`).join('');
 }
+function openSaveSessionModal(){
+  document.getElementById('session-name-input').value=currentSessionName==='Unsaved session'?'':currentSessionName;
+  openModal('saveSessionModal');setTimeout(()=>document.getElementById('session-name-input').focus(),100);
+}
+function saveSession(){
+  const name=document.getElementById('session-name-input').value.trim();
+  if(!name){document.getElementById('session-name-input').focus();return;}
+  const sessions=getSessions(),id='sess-'+Date.now();
+  sessions.push({id,name,savedAt:new Date().toISOString(),items:JSON.parse(JSON.stringify(items))});
+  localStorage.setItem(SK.sessions,JSON.stringify(sessions));
+  currentSessionName=name;document.getElementById('sessionChip').textContent=name;
+  saveItems();closeModal('saveSessionModal');renderSessions();showToast(`Session "${name}" saved.`);
+}
+function loadSession(id){
+  const s=getSessions().find(x=>x.id===id);if(!s)return;
+  items=JSON.parse(JSON.stringify(s.items));
+  nextId=items.length?Math.max(...items.map(i=>parseInt(i.id.replace('item-',''))||0))+1:1;
+  currentSessionName=s.name;document.getElementById('sessionChip').textContent=s.name;
+  saveItems();render();showToast(`Loaded "${s.name}".`);
+}
+function deleteSession(id){openDeleteSessionModal(id);}
 
-function saveSettings() {
-  const s = {
-    apiKey:    document.getElementById('settings-apikey').value.trim(),
-    mcpUrl:    document.getElementById('settings-mcpurl').value.trim() || 'https://mcp.atlassian.com/v1/mcp',
-    issueType: document.getElementById('settings-issuetype').value,
-    adjRate:   parseFloat(document.getElementById('settings-adjrate').value) || 0.05,
+/* Clear */
+function openClearModal(){document.getElementById('clearConfirmLabel').textContent=currentSessionName;document.getElementById('clear-confirm-input').value='';document.getElementById('clearConfirmBtn').disabled=true;openModal('clearModal');setTimeout(()=>document.getElementById('clear-confirm-input').focus(),100);}
+function checkClearConfirm(){document.getElementById('clearConfirmBtn').disabled=document.getElementById('clear-confirm-input').value.trim()!==currentSessionName;}
+function executeClearAll(){items=[];currentSessionName='Unsaved session';document.getElementById('sessionChip').textContent=currentSessionName;saveItems();render();closeModal('clearModal');showToast('All data cleared.');}
+
+/* Import/Export */
+function triggerImportJSON(){closeAllDropdowns();document.getElementById('importFileInput').click();}
+function handleImportJSON(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      const parsed=Array.isArray(data)?data:(data.items||[]);
+      if(!parsed.length)throw new Error('No items found.');
+      pendingImport=parsed;
+      document.getElementById('importModalSub').textContent=`Ready to import ${parsed.length} item${parsed.length!==1?'s':''} from "${file.name}"`;
+      document.getElementById('importPreview').innerHTML=parsed.slice(0,4).map(it=>`<div style="padding:3px 0;border-bottom:1px solid var(--border)">${escHtml(it.name||'Unnamed')} <span style="color:var(--text-muted)">R:${it.reach??'?'} I:${it.impact??'?'}</span></div>`).join('')+(parsed.length>4?`<div style="padding:3px 0;color:var(--text-muted)">…and ${parsed.length-4} more</div>`:'');
+      openModal('importModal');
+    }catch(err){showToast('Invalid JSON: '+err.message,true);}
+    input.value='';
   };
-  localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(s));
-  closeModal('settingsModal');
-  showToast('Settings saved.');
-  updateConnectionStatus(!!s.apiKey);
+  reader.readAsText(file);
+}
+function confirmImport(){
+  if(!pendingImport)return;
+  const maxId=items.length?Math.max(...items.map(i=>parseInt(i.id.replace('item-',''))||0)):0;
+  pendingImport.forEach((raw,idx)=>items.push({id:'item-'+(maxId+idx+1),name:raw.name||'Untitled',key:raw.key||null,keyUrl:raw.keyUrl||null,type:raw.type||'manual',desc:raw.desc||raw.description||null,reach:parseFloat(raw.reach)||null,impact:parseFloat(raw.impact)||null,conf:parseFloat(raw.conf)||null,effort:parseFloat(raw.effort)||null}));
+  nextId=Math.max(...items.map(i=>parseInt(i.id.replace('item-',''))||0))+1;
+  pendingImport=null;closeModal('importModal');render();showToast(`Imported items.`);
+}
+function exportCSV(){
+  if(!items.length)return;
+  const header=['Rank','Key','Name','Type','Description','Reach','Impact','Confidence %','Effort','RICE Score'];
+  const sorted=[...items].map(i=>({...i,score:calcRice(i.reach,i.impact,i.conf,i.effort)})).sort((a,b)=>(b.score||0)-(a.score||0));
+  const rows=sorted.map((it,idx)=>[idx+1,it.key||'',it.name,it.type||'',it.desc||'',it.reach??'',it.impact??'',it.conf??'',it.effort??'',it.score??'']);
+  const csv=[header,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  dl(csv,`rice-${today()}.csv`,'text/csv;charset=utf-8;');showToast('CSV exported.');
+}
+function exportJSON(){
+  if(!items.length)return;
+  dl(JSON.stringify({session:currentSessionName,exportedAt:new Date().toISOString(),items},null,2),`rice-${today()}.json`,'application/json');
+  showToast('JSON exported.');
+}
+function dl(content,filename,type){const blob=new Blob([content],{type}),url=URL.createObjectURL(blob),a=Object.assign(document.createElement('a'),{href:url,download:filename});document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);}
+function today(){return new Date().toISOString().slice(0,10);}
+
+/* RICE */
+function calcRice(reach,impact,conf,effort){const r=parseFloat(reach),i=parseFloat(impact),c=parseFloat(conf),e=parseFloat(effort);if(!r||!i||!c||!e||e===0)return null;return Math.round((r*i*(c/100))/e*10)/10;}
+function scoreClass(s){if(s===null||s===undefined)return 'none';return s>=50?'high':s>=20?'med':'low';}
+function scoreColor(s){if(s===null)return '#d1d5db';return s>=50?'#16a34a':s>=20?'#ca8a04':'#ef4444';}
+
+/* Key helpers */
+function renderKey(item){
+  const label=escHtml(item.key||'—');
+  if(item.keyUrl&&item.key)return`<a class="key-link" href="${escHtml(item.keyUrl)}" target="_blank" rel="noopener" title="Open ${escHtml(item.key)}">${label}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>`;
+  return`<span class="key-plain">${label}</span>`;
+}
+function extractKeyFromUrl(url){if(!url)return null;const m=url.match(/\/browse\/([A-Z][A-Z0-9]*-\d+)/i);return m?m[1].toUpperCase():null;}
+function autoExtractKey(uid,kid){const ex=extractKeyFromUrl(document.getElementById(uid).value.trim());if(ex)document.getElementById(kid).value=ex;}
+
+/* KPIs */
+function updateKPIs(ws){
+  const scored=ws.filter(i=>i.score!==null);
+  const avg=scored.length?scored.reduce((s,i)=>s+i.score,0)/scored.length:null;
+  const high=scored.filter(i=>i.score>=50).length;
+  document.getElementById('kpi-avg').textContent=avg!==null?avg.toLocaleString(undefined,{maximumFractionDigits:0}):'—';
+  document.getElementById('kpi-avg-sub').textContent=scored.length?`Across ${scored.length} initiative${scored.length!==1?'s':''}` :'No scored items';
+  document.getElementById('kpi-high').textContent=high;
+  document.getElementById('kpi-high-sub').textContent=items.length?`${Math.round((high/items.length)*100)}% of total`:'Score ≥ 50';
+  const plottable=ws.filter(i=>i.impact!==null&&i.effort!==null);
+  let qw=0;
+  if(plottable.length>=2){const me=plottable.reduce((s,i)=>s+i.effort,0)/plottable.length,mi=plottable.reduce((s,i)=>s+i.impact,0)/plottable.length;qw=plottable.filter(i=>i.impact>=mi&&i.effort<me).length;}
+  document.getElementById('kpi-qw').textContent=qw;
+  const top=scored.length?scored.reduce((a,b)=>a.score>b.score?a:b):null;
+  document.getElementById('kpi-top').textContent=top?(top.name.length>18?top.name.slice(0,16)+'…':top.name):'—';
+  document.getElementById('kpi-top-sub').textContent=top?'Score: '+top.score.toLocaleString():'';
 }
 
-function toggleApiKeyVisibility() {
-  const inp = document.getElementById('settings-apikey');
-  const btn = document.getElementById('toggleApiBtn');
-  if (inp.type === 'password') { inp.type = 'text';     btn.textContent = 'Hide'; }
-  else                         { inp.type = 'password'; btn.textContent = 'Show'; }
-}
-
-function updateConnectionStatus(hasKey) {
-  const dot   = document.getElementById('connDot');
-  const label = document.getElementById('connLabel');
-  if (hasKey) {
-    dot.className   = 'conn-dot ok';
-    label.textContent = 'API key configured';
-  } else {
-    dot.className   = 'conn-dot';
-    label.textContent = 'Not connected';
-  }
-}
-
-/* ================================================================
-   PERSISTENCE
-================================================================ */
-function saveItems() {
-  try { localStorage.setItem(STORAGE_ITEMS, JSON.stringify(items)); } catch {}
-}
-
-function loadItems() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_ITEMS));
-    if (Array.isArray(saved) && saved.length) {
-      items  = saved;
-      nextId = Math.max(...items.map(i => parseInt(i.id.replace('item-','')) || 0)) + 1;
-    }
-  } catch {}
-}
-
-/* ================================================================
-   RICE CALCULATION
-================================================================ */
-function calcRice(reach, impact, conf, effort) {
-  const r = parseFloat(reach);
-  const i = parseFloat(impact);
-  const c = parseFloat(conf);
-  const e = parseFloat(effort);
-  if (!r || !i || !c || !e || e === 0) return null;
-  const raw = (r * i * (c / 100)) / e;
-  return Math.round(raw * 10) / 10;
-}
-
-function scoreClass(s) {
-  if (s === null || s === undefined) return 'none';
-  if (s >= 50) return 'high';
-  if (s >= 20) return 'med';
-  return 'low';
-}
-
-function scoreColor(s) {
-  if (s === null) return '#d1d5db';
-  if (s >= 50)   return '#16a34a';
-  if (s >= 20)   return '#ca8a04';
-  return '#ef4444';
-}
-
-/* ================================================================
-   KEY RENDERING & URL HELPERS
-================================================================ */
-function renderKey(item) {
-  const label = escHtml(item.key || '—');
-  if (item.keyUrl && item.key) {
-    return `<a class="key-link" href="${escHtml(item.keyUrl)}" target="_blank" rel="noopener noreferrer"
-      title="Open ${escHtml(item.key)} in Jira">
-      ${label}
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 0 1 2h3"/>
-        <polyline points="15 3 21 3 21 9"/>
-        <line x1="10" y1="14" x2="21" y2="3"/>
-      </svg>
-    </a>`;
-  }
-  return `<span class="key-plain">${label}</span>`;
-}
-
-/* Extract issue key (e.g. SB-2161) from a Jira browse URL */
-function extractKeyFromUrl(url) {
-  if (!url) return null;
-  const m = url.match(/\/browse\/([A-Z][A-Z0-9]*-\d+)/i);
-  return m ? m[1].toUpperCase() : null;
-}
-
-/* Called oninput on any URL field; fills the paired key field if key is empty or was auto-set */
-function autoExtractKey(urlFieldId, keyFieldId) {
-  const url = document.getElementById(urlFieldId).value.trim();
-  const keyField = document.getElementById(keyFieldId);
-  const extracted = extractKeyFromUrl(url);
-  if (extracted) keyField.value = extracted;
-}
-
-/* ================================================================
-   RENDER
-================================================================ */
-function render() {
-  const tbody      = document.getElementById('tbody');
-  const emptyState = document.getElementById('emptyState');
-  const mainTable  = document.getElementById('mainTable');
-  const exportBtn  = document.getElementById('exportBtn');
-  const clearBtn   = document.getElementById('clearBtn');
-
-  exportBtn.disabled = items.length === 0;
-  clearBtn.disabled  = items.length === 0;
-
-  if (items.length === 0) {
-    emptyState.style.display = '';
-    mainTable.style.display  = 'none';
-    updateSidebar([]);
-    renderMatrix();
-    return;
-  }
-
-  emptyState.style.display = 'none';
-  mainTable.style.display  = '';
-
-  /* Build a scored + sorted copy */
-  const withScores = items.map(item => ({
-    ...item,
-    score: calcRice(item.reach, item.impact, item.conf, item.effort)
-  }));
-
-  if      (sortBy === 'score')  withScores.sort((a, b) => (b.score || 0) - (a.score || 0));
-  else if (sortBy === 'name')   withScores.sort((a, b) => a.name.localeCompare(b.name));
-  else if (sortBy === 'effort') withScores.sort((a, b) => (a.effort || Infinity) - (b.effort || Infinity));
-  else if (sortBy === 'reach')  withScores.sort((a, b) => (b.reach  || 0) - (a.reach  || 0));
-  else if (sortBy === 'impact') withScores.sort((a, b) => (b.impact || 0) - (a.impact || 0));
-  else if (sortBy === 'conf')   withScores.sort((a, b) => (b.conf   || 0) - (a.conf   || 0));
-  else if (sortBy === 'key')    withScores.sort((a, b) => (a.key || '').localeCompare(b.key || '', undefined, {numeric: true}));
-  /* 'manual' — preserve items array order (already set above) */
-
-  const maxScore = Math.max(...withScores.map(i => i.score || 0), 1);
-
-  tbody.innerHTML = withScores.map((item, idx) => {
-    const score     = item.score;
-    const barWidth  = score ? Math.round((score / maxScore) * 100) : 0;
-    const rankClass = idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : 'rank-n';
-    const typeClass = 'type-' + (item.type || 'manual');
-
-    return `<tr data-id="${item.id}" class="${idx === 0 && score ? 'top-row' : ''}">
-      <td class="center"><span class="rank-badge ${rankClass}">${idx + 1}</span></td>
-      <td class="center" id="move-col-${item.id}" style="display:${sortBy==='manual'?'':'none'}">
-        <div style="display:flex;flex-direction:column;gap:2px;align-items:center">
-          <button class="move-btn" onclick="moveItem('${item.id}',-1)" title="Move up" ${idx===0?'disabled':''}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
-          </button>
-          <button class="move-btn" onclick="moveItem('${item.id}',1)" title="Move down" ${idx===withScores.length-1?'disabled':''}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-        </div>
-      </td>
+/* Render table */
+function render(){
+  const tbody=document.getElementById('tbody'),empty=document.getElementById('emptyState'),tbl=document.getElementById('mainTable');
+  document.getElementById('exportBtn').disabled=items.length===0;
+  document.getElementById('clearBtn').disabled=items.length===0;
+  document.getElementById('tableBadge').textContent=items.length;
+  if(!items.length){empty.style.display='';tbl.style.display='none';updateKPIs([]);renderMatrix();return;}
+  empty.style.display='none';tbl.style.display='';
+  const ws=items.map(it=>({...it,score:calcRice(it.reach,it.impact,it.conf,it.effort)}));
+  if(sortBy==='score')ws.sort((a,b)=>(b.score||0)-(a.score||0));
+  else if(sortBy==='name')ws.sort((a,b)=>a.name.localeCompare(b.name));
+  else if(sortBy==='effort')ws.sort((a,b)=>(a.effort||Infinity)-(b.effort||Infinity));
+  else if(sortBy==='reach')ws.sort((a,b)=>(b.reach||0)-(a.reach||0));
+  else if(sortBy==='impact')ws.sort((a,b)=>(b.impact||0)-(a.impact||0));
+  else if(sortBy==='conf')ws.sort((a,b)=>(b.conf||0)-(a.conf||0));
+  else if(sortBy==='key')ws.sort((a,b)=>(a.key||'').localeCompare(b.key||'',undefined,{numeric:true}));
+  const thM=document.getElementById('th-move');if(thM)thM.style.display=sortBy==='manual'?'':'none';
+  const maxS=Math.max(...ws.map(i=>i.score||0),1);
+  tbody.innerHTML=ws.map((item,idx)=>{
+    const s=item.score,bw=s?Math.round((s/maxS)*100):0;
+    const rk=idx===0?'rank-1':idx===1?'rank-2':idx===2?'rank-3':'rank-n';
+    const tc='type-'+(item.type||'manual');
+    return`<tr data-id="${item.id}" class="${idx===0&&s?'top-row':''}">
+      <td class="center"><span class="rank-badge ${rk}">${idx+1}</span></td>
+      <td class="center" style="display:${sortBy==='manual'?'':'none'}"><div style="display:flex;flex-direction:column;gap:2px;align-items:center">
+        <button class="move-btn" onclick="moveItem('${item.id}',-1)" ${idx===0?'disabled':''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg></button>
+        <button class="move-btn" onclick="moveItem('${item.id}',1)" ${idx===ws.length-1?'disabled':''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></button>
+      </div></td>
       <td>${renderKey(item)}</td>
-      <td>
-        <div class="item-name">${escHtml(item.name)}</div>
-        <div style="margin-top:3px">
-          <span class="type-badge ${typeClass}">${escHtml(item.type || 'manual')}</span>
-          ${item.desc ? `<span class="item-desc">${escHtml(item.desc)}</span>` : ''}
-        </div>
-      </td>
-      <td class="center">
-        <input class="score-input reach" type="number" min="0" step="1"
-          value="${item.reach !== null && item.reach !== undefined ? item.reach : ''}"
-          placeholder="—" onchange="updateField('${item.id}', 'reach', this.value)"
-          title="Reach: users impacted per quarter" />
-      </td>
-      <td class="center">
-        <input class="score-input impact" type="number" min="0" max="3" step="0.25"
-          value="${item.impact !== null && item.impact !== undefined ? item.impact : ''}"
-          placeholder="—" onchange="updateField('${item.id}', 'impact', this.value)"
-          title="Impact: 0.25 / 0.5 / 1 / 2 / 3" />
-      </td>
-      <td class="center">
-        <input class="score-input conf" type="number" min="0" max="100" step="5"
-          value="${item.conf !== null && item.conf !== undefined ? item.conf : ''}"
-          placeholder="—" onchange="updateField('${item.id}', 'conf', this.value)"
-          title="Confidence: percentage (e.g. 80)" />
-      </td>
-      <td class="center">
-        <input class="score-input effort" type="number" min="0.1" step="0.5"
-          value="${item.effort !== null && item.effort !== undefined ? item.effort : ''}"
-          placeholder="—" onchange="updateField('${item.id}', 'effort', this.value)"
-          title="Effort: person-months" />
-      </td>
-      <td class="center">
-        <div class="rice-score ${scoreClass(score)}">${score !== null ? score : '—'}</div>
-        <div class="score-bar-wrap">
-          <div class="score-bar" style="width:${barWidth}%;background:${scoreColor(score)}"></div>
-        </div>
-      </td>
-      <td class="center">
-        <div class="action-cell">
-          <button class="action-btn edit" onclick="openEditModal('${item.id}')" title="Edit item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-          </button>
-          <button class="action-btn" onclick="removeItem('${item.id}')" title="Delete item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-              <path d="M10 11v6"/><path d="M14 11v6"/>
-            </svg>
-          </button>
-        </div>
-      </td>
+      <td><div class="item-name">${escHtml(item.name)}</div><div style="margin-top:3px"><span class="type-badge ${tc}">${escHtml(item.type||'manual')}</span>${item.desc?`<span class="item-desc">${escHtml(item.desc)}</span>`:''}</div></td>
+      <td class="center"><input class="score-input reach" type="number" min="0" step="1" value="${item.reach??''}" placeholder="—" onchange="updateField('${item.id}','reach',this.value)"/></td>
+      <td class="center"><input class="score-input impact" type="number" min="0" max="3" step="0.25" value="${item.impact??''}" placeholder="—" onchange="updateField('${item.id}','impact',this.value)"/></td>
+      <td class="center"><input class="score-input conf" type="number" min="0" max="100" step="5" value="${item.conf??''}" placeholder="—" onchange="updateField('${item.id}','conf',this.value)"/></td>
+      <td class="center"><input class="score-input effort" type="number" min="0.1" step="0.5" value="${item.effort??''}" placeholder="—" onchange="updateField('${item.id}','effort',this.value)"/></td>
+      <td class="center"><div class="rice-score ${scoreClass(s)}">${s!==null?s.toLocaleString():'—'}</div><div class="score-bar-wrap"><div class="score-bar" style="width:${bw}%;background:${scoreColor(s)}"></div></div></td>
+      <td class="center"><div class="action-cell">
+        <button class="action-btn edit" onclick="openEditModal('${item.id}')" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button class="action-btn" onclick="openDeleteItemModal('${item.id}')" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
+      </div></td>
     </tr>`;
   }).join('');
-
-  updateSidebar(withScores);
-  saveItems();
-  if (matrixVisible) renderMatrix();
+  updateKPIs(ws);renderMatrix();saveItems();
 }
 
-/* ================================================================
-   SIDEBAR
-================================================================ */
-function updateSidebar(withScores) {
-  const scored = withScores.filter(i => i.score !== null);
-
-  document.getElementById('kpi-count').textContent  = items.length;
-  document.getElementById('kpi-scored').textContent = scored.length;
-
-  if (scored.length) {
-    const top = Math.max(...scored.map(i => i.score));
-    const avg = scored.reduce((s, i) => s + i.score, 0) / scored.length;
-    document.getElementById('kpi-top').textContent = top.toFixed(1);
-    document.getElementById('kpi-avg').textContent = avg.toFixed(1);
-  } else {
-    document.getElementById('kpi-top').textContent = '—';
-    document.getElementById('kpi-avg').textContent = '—';
-  }
-
-  const rankList = document.getElementById('rankList');
-  if (!scored.length) {
-    rankList.innerHTML = '<li style="font-size:12px;color:var(--text-muted);padding:8px 0">Score items to see ranking</li>';
-    return;
-  }
-
-  const top8 = [...scored].sort((a, b) => b.score - a.score).slice(0, 8);
-  rankList.innerHTML = top8.map((item, i) => `
-    <li class="rank-item" onclick="highlightRow('${item.id}')">
-      <span class="rank-num">${i + 1}</span>
-      <span class="rank-name" title="${escHtml(item.name)}">${escHtml(item.name)}</span>
-      <span class="rank-score">${item.score}</span>
-    </li>`).join('');
+/* Mutations */
+function updateField(id,field,val){const item=items.find(i=>i.id===id);if(!item)return;const p=parseFloat(val);item[field]=isNaN(p)?null:p;render();}
+function removeItem(id){openDeleteItemModal(id);}
+function moveItem(id,dir){
+  const idx=items.findIndex(i=>i.id===id);if(idx<0)return;
+  const si=idx+dir;if(si<0||si>=items.length)return;
+  [items[idx],items[si]]=[items[si],items[idx]];
+  const rate=getSettings().adjRate||0.05,item=items[si],factor=dir<0?1+rate:1-rate;
+  if(item.reach!==null)item.reach=Math.max(0,Math.round(item.reach*factor));
+  if(item.impact!==null){const raw=Math.min(3,Math.max(0.25,item.impact*factor));item.impact=[0.25,0.5,1,2,3].reduce((p,c)=>Math.abs(c-raw)<Math.abs(p-raw)?c:p);}
+  if(item.conf!==null)item.conf=Math.min(100,Math.max(1,Math.round(item.conf*factor)));
+  render();showToast(`Moved ${dir<0?'up':'down'} · R/I/C ${dir<0?'+':'-'}${Math.round(rate*100)}%`);
 }
+function setSort(s){sortBy=s;document.getElementById('sortSelect').value=s;render();}
 
-function highlightRow(id) {
-  document.querySelectorAll('#tbody tr').forEach(tr => tr.style.outline = '');
-  const row = document.querySelector(`#tbody tr[data-id="${id}"]`);
-  if (row) {
-    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    row.style.outline = '2px solid var(--blue)';
-    setTimeout(() => { row.style.outline = ''; }, 2000);
-  }
+/* Add/Edit modals */
+function openAddModal(){['inp-name','inp-key','inp-keyurl','inp-desc','inp-reach','inp-impact','inp-conf','inp-effort'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});openModal('addModal');setTimeout(()=>document.getElementById('inp-name').focus(),100);}
+function submitAddItem(){
+  const name=document.getElementById('inp-name').value.trim();
+  if(!name){document.getElementById('inp-name').style.borderColor='var(--red)';document.getElementById('inp-name').focus();return;}
+  document.getElementById('inp-name').style.borderColor='';
+  const keyUrl=document.getElementById('inp-keyurl').value.trim()||null,rawKey=document.getElementById('inp-key').value.trim();
+  items.push({id:'item-'+(nextId++),name,key:rawKey||(keyUrl?extractKeyFromUrl(keyUrl):null),keyUrl,type:document.getElementById('inp-type').value,desc:document.getElementById('inp-desc').value.trim()||null,reach:parseFloat(document.getElementById('inp-reach').value)||null,impact:parseFloat(document.getElementById('inp-impact').value)||null,conf:parseFloat(document.getElementById('inp-conf').value)||null,effort:parseFloat(document.getElementById('inp-effort').value)||null});
+  closeModal('addModal');render();showToast(`"${name}" added.`);
 }
-
-/* ================================================================
-   DATA MUTATIONS
-================================================================ */
-function updateField(id, field, val) {
-  const item = items.find(i => i.id === id);
-  if (!item) return;
-  const parsed = parseFloat(val);
-  item[field] = isNaN(parsed) ? null : parsed;
-  render();
+function openEditModal(id){
+  const item=items.find(i=>i.id===id);if(!item)return;
+  document.getElementById('edit-id').value=id;document.getElementById('edit-name').value=item.name||'';document.getElementById('edit-key').value=item.key||'';document.getElementById('edit-keyurl').value=item.keyUrl||'';document.getElementById('edit-desc').value=item.desc||'';document.getElementById('edit-reach').value=item.reach??'';document.getElementById('edit-impact').value=item.impact??'';document.getElementById('edit-conf').value=item.conf??'';document.getElementById('edit-effort').value=item.effort??'';document.getElementById('edit-type').value=item.type||'manual';
+  openModal('editModal');setTimeout(()=>document.getElementById('edit-name').focus(),100);
 }
-
-function removeItem(id) {
-  if (!confirm('Remove this item?')) return;
-  items = items.filter(i => i.id !== id);
-  render();
+function submitEditItem(){
+  const id=document.getElementById('edit-id').value,item=items.find(i=>i.id===id);if(!item)return;
+  const name=document.getElementById('edit-name').value.trim();if(!name){document.getElementById('edit-name').focus();return;}
+  const keyUrl=document.getElementById('edit-keyurl').value.trim()||null,rawKey=document.getElementById('edit-key').value.trim();
+  Object.assign(item,{name,key:rawKey||(keyUrl?extractKeyFromUrl(keyUrl):null),keyUrl,type:document.getElementById('edit-type').value,desc:document.getElementById('edit-desc').value.trim()||null,reach:parseFloat(document.getElementById('edit-reach').value)||null,impact:parseFloat(document.getElementById('edit-impact').value)||null,conf:parseFloat(document.getElementById('edit-conf').value)||null,effort:parseFloat(document.getElementById('edit-effort').value)||null});
+  closeModal('editModal');render();showToast(`"${name}" updated.`);
 }
-
-function moveItem(id, dir) {
-  /* dir: -1 = up (higher priority), +1 = down (lower priority) */
-  const idx = items.findIndex(i => i.id === id);
-  if (idx < 0) return;
-  const swapIdx = idx + dir;
-  if (swapIdx < 0 || swapIdx >= items.length) return;
-
-  /* Swap positions in the array */
-  [items[idx], items[swapIdx]] = [items[swapIdx], items[idx]];
-
-  /* Apply proportional R/I/C adjustment to the moved item */
-  const rate = getSettings().adjRate || 0.05;
-  const item = items[swapIdx]; /* item is now at its new position */
-  const factor = dir < 0 ? (1 + rate) : (1 - rate); /* up = boost, down = reduce */
-
-  if (item.reach  !== null) item.reach  = Math.max(0, Math.round(item.reach  * factor));
-  if (item.impact !== null) {
-    const raw = Math.min(3, Math.max(0.25, item.impact * factor));
-    /* Snap to nearest standard impact value: 0.25, 0.5, 1, 2, 3 */
-    const steps = [0.25, 0.5, 1, 2, 3];
-    item.impact = steps.reduce((prev, cur) => Math.abs(cur - raw) < Math.abs(prev - raw) ? cur : prev);
-  }
-  if (item.conf !== null) item.conf = Math.min(100, Math.max(1, Math.round(item.conf * factor)));
-
-  render();
-  showToast(`Moved ${dir < 0 ? 'up ↑' : 'down ↓'} · R/I/C adjusted ${dir < 0 ? '+' : '-'}${Math.round(rate*100)}%`);
-}
-
-function clearAll() {
-  if (!confirm(`Clear all ${items.length} item${items.length !== 1 ? 's' : ''}? This cannot be undone.`)) return;
-  items = [];
-  render();
-  showToast('All items cleared.');
-}
-
-/* ================================================================
-   SORT
-================================================================ */
-function setSort(s) {
-  sortBy = s;
-  const sel = document.getElementById('sortSelect');
-  if (sel) sel.value = s;
-  render();
-}
-
-/* ================================================================
-   ADD ITEM MODAL
-================================================================ */
-function openAddModal() {
-  ['inp-name','inp-key','inp-keyurl','inp-desc','inp-reach','inp-impact','inp-conf','inp-effort'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
-  document.getElementById('addModal').classList.add('open');
-  setTimeout(() => document.getElementById('inp-name').focus(), 100);
-}
-
-/* ── Edit Item ── */
-function openEditModal(id) {
-  const item = items.find(i => i.id === id);
-  if (!item) return;
-
-  document.getElementById('edit-id').value      = id;
-  document.getElementById('edit-name').value    = item.name || '';
-  document.getElementById('edit-key').value     = item.key  || '';
-  document.getElementById('edit-keyurl').value  = item.keyUrl || '';
-  document.getElementById('edit-desc').value    = item.desc || '';
-  document.getElementById('edit-reach').value   = item.reach  !== null ? item.reach  : '';
-  document.getElementById('edit-impact').value  = item.impact !== null ? item.impact : '';
-  document.getElementById('edit-conf').value    = item.conf   !== null ? item.conf   : '';
-  document.getElementById('edit-effort').value  = item.effort !== null ? item.effort : '';
-
-  const typeEl = document.getElementById('edit-type');
-  typeEl.value = item.type || 'manual';
-
-  document.getElementById('editModal').classList.add('open');
-  setTimeout(() => document.getElementById('edit-name').focus(), 100);
-}
-
-function submitEditItem() {
-  const id   = document.getElementById('edit-id').value;
-  const item = items.find(i => i.id === id);
-  if (!item) return;
-
-  const name = document.getElementById('edit-name').value.trim();
-  if (!name) {
-    document.getElementById('edit-name').focus();
-    document.getElementById('edit-name').style.borderColor = 'var(--red)';
-    return;
-  }
-  document.getElementById('edit-name').style.borderColor = '';
-
-  const keyUrl = document.getElementById('edit-keyurl').value.trim() || null;
-  const rawKey = document.getElementById('edit-key').value.trim();
-  const key    = rawKey || (keyUrl ? extractKeyFromUrl(keyUrl) : null);
-
-  item.name   = name;
-  item.key    = key;
-  item.keyUrl = keyUrl;
-  item.type   = document.getElementById('edit-type').value;
-  item.desc   = document.getElementById('edit-desc').value.trim() || null;
-  item.reach  = parseFloat(document.getElementById('edit-reach').value)  || null;
-  item.impact = parseFloat(document.getElementById('edit-impact').value) || null;
-  item.conf   = parseFloat(document.getElementById('edit-conf').value)   || null;
-  item.effort = parseFloat(document.getElementById('edit-effort').value) || null;
-
-  closeModal('editModal');
-  render();
-  showToast(`"${name}" updated.`);
-}
-
-function deleteFromEdit() {
-  const id   = document.getElementById('edit-id').value;
-  const item = items.find(i => i.id === id);
-  if (!item) return;
-  if (!confirm(`Delete "${item.name}"? This cannot be undone.`)) return;
-  items = items.filter(i => i.id !== id);
-  closeModal('editModal');
-  render();
-  showToast(`"${item.name}" deleted.`);
-}
-
-function submitAddItem() {
-  const name = document.getElementById('inp-name').value.trim();
-  if (!name) {
-    document.getElementById('inp-name').focus();
-    document.getElementById('inp-name').style.borderColor = 'var(--red)';
-    return;
-  }
-  document.getElementById('inp-name').style.borderColor = '';
-
-  const reach  = parseFloat(document.getElementById('inp-reach').value)  || null;
-  const impact = parseFloat(document.getElementById('inp-impact').value) || null;
-  const conf   = parseFloat(document.getElementById('inp-conf').value)   || null;
-  const effort = parseFloat(document.getElementById('inp-effort').value) || null;
-  const keyUrl = document.getElementById('inp-keyurl').value.trim() || null;
-  const rawKey = document.getElementById('inp-key').value.trim();
-  const key    = rawKey || (keyUrl ? extractKeyFromUrl(keyUrl) : null);
-
-  items.push({
-    id:     'item-' + (nextId++),
-    name,
-    key,
-    keyUrl,
-    type:   document.getElementById('inp-type').value,
-    desc:   document.getElementById('inp-desc').value.trim() || null,
-    reach, impact, conf, effort,
-  });
-
-  closeModal('addModal');
-  render();
-  showToast(`"${name}" added.`);
-}
-
-/* ================================================================
-   EXPORT CSV
-================================================================ */
-function exportCSV() {
-  if (items.length === 0) {
-    showToast('No items to export.', true);
-    return;
-  }
-
-  const header = ['Rank','Key','Name','Type','Description','Reach','Impact','Confidence %','Effort (person-months)','RICE Score'];
-
-  /* Sort by score descending for the export */
-  const sorted = [...items]
-    .map(item => ({ ...item, score: calcRice(item.reach, item.impact, item.conf, item.effort) }))
-    .sort((a, b) => (b.score || 0) - (a.score || 0));
-
-  const rows = sorted.map((item, idx) => [
-    idx + 1,
-    item.key   || '',
-    item.name,
-    item.type  || '',
-    item.desc  || '',
-    item.reach  !== null ? item.reach  : '',
-    item.impact !== null ? item.impact : '',
-    item.conf   !== null ? item.conf   : '',
-    item.effort !== null ? item.effort : '',
-    item.score  !== null ? item.score  : '',
-  ]);
-
-  const csvContent = [header, ...rows]
-    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-    .join('\r\n');
-
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href     = url;
-  link.download = `rice-scores-${new Date().toISOString().slice(0,10)}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-
-  showToast(`Exported ${items.length} item${items.length !== 1 ? 's' : ''} to CSV.`);
-}
-
-/* ================================================================
-   JIRA MODAL
-================================================================ */
-function openJiraModal() {
-  resetJiraModal();
-  const s = getSettings();
-
-  /* Pre-populate issue type from settings */
-  if (s.issueType) document.getElementById('jira-type').value = s.issueType;
-
-  /* Show warning if no API key */
-  document.getElementById('jiraApiWarning').style.display = s.apiKey ? 'none' : '';
-
-  document.getElementById('jiraModal').classList.add('open');
-}
-
-function resetJiraModal() {
-  document.getElementById('jiraStep1').style.display   = '';
-  document.getElementById('jiraStep2').style.display   = 'none';
-  document.getElementById('jira-query').value          = '';
-  document.getElementById('jiraResultsWrap').style.display = 'none';
-  document.getElementById('jiraErrorWrap').style.display   = 'none';
-  document.getElementById('importBtn').style.display   = 'none';
-  document.getElementById('progressBar').style.width   = '0%';
-  jiraFetchedItems = [];
-}
-
-async function fetchFromJira() {
-  const s          = getSettings();
-  const apiKey     = s.apiKey;
-  const mcpUrl     = s.mcpUrl || 'https://mcp.atlassian.com/v1/mcp';
-  const query      = document.getElementById('jira-query').value.trim();
-  const issueType  = document.getElementById('jira-type').value;
-  const maxResults = Math.min(parseInt(document.getElementById('jira-max').value) || 10, 50);
-
-  if (!apiKey) {
-    showToast('Add your Anthropic API key in Settings first.', true);
-    return;
-  }
-  if (!query) {
-    document.getElementById('jira-query').focus();
-    return;
-  }
-
-  /* Switch to step 2 */
-  document.getElementById('jiraStep1').style.display = 'none';
-  document.getElementById('jiraStep2').style.display = '';
-
-  const statusDot  = document.getElementById('jiraStatusDot');
-  const statusText = document.getElementById('jiraStatusText');
-  const progressEl = document.getElementById('progressBar');
-
-  function setStatus(color, msg, pct) {
-    statusDot.style.background  = color;
-    statusText.textContent       = msg;
-    progressEl.style.width       = pct + '%';
-  }
-
-  setStatus('#f59e0b', 'Connecting to Atlassian Rovo MCP…', 15);
-
-  const systemPrompt = [
-    'You are a Jira assistant with access to Atlassian tools.',
-    'Search for Jira issues and return ONLY a valid JSON array — no markdown fences, no preamble, no trailing text.',
-    'Each object must have exactly these fields:',
-    '  key        (string, e.g. "PROJ-42")',
-    '  name       (string, the issue summary)',
-    '  type       (string: "Epic" | "Story" | "Task" | "Bug")',
-    '  status     (string, e.g. "In Progress")',
-    '  description (string, max 100 chars, the issue description or empty string)',
-  ].join('\n');
-
-  const typeClause = issueType === 'any' ? 'issues' : `${issueType}s`;
-  const userPrompt = `Search Jira for ${typeClause} matching: "${query}". Return up to ${maxResults} results as a JSON array.`;
-
-  try {
-    setStatus('#f59e0b', 'Querying Jira via MCP…', 40);
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key':    apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'mcp-client-2025-04-04',
-      },
-      body: JSON.stringify({
-        model:      'claude-sonnet-4-20250514',
-        max_tokens: 2048,
-        system:     systemPrompt,
-        messages:   [{ role: 'user', content: userPrompt }],
-        mcp_servers: [{
-          type: 'url',
-          url:  mcpUrl,
-          name: 'atlassian',
-        }],
-      }),
-    });
-
-    setStatus('#f59e0b', 'Parsing response…', 80);
-
-    if (!response.ok) {
-      const errBody = await response.json().catch(() => ({}));
-      throw new Error(errBody.error?.message || `HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    /* Extract all text blocks (Claude may interleave tool use blocks) */
-    const textBlocks = (data.content || [])
-      .filter(b => b.type === 'text')
-      .map(b => b.text)
-      .join('');
-
-    let parsed = [];
-    /* Strip any accidental markdown fences */
-    const clean = textBlocks.replace(/```[a-z]*\n?/gi, '').trim();
-    /* Find the outermost JSON array */
-    const arrMatch = clean.match(/\[[\s\S]*\]/);
-    if (arrMatch) {
-      parsed = JSON.parse(arrMatch[0]);
-      if (!Array.isArray(parsed)) parsed = [];
-    }
-
-    setStatus('#22c55e', `Found ${parsed.length} issue${parsed.length !== 1 ? 's' : ''}`, 100);
-
-    /* Update topbar */
-    document.getElementById('connDot').classList.remove('err');
-    document.getElementById('connDot').classList.add('ok');
-    document.getElementById('connLabel').textContent = 'Connected to Jira';
-
-    if (parsed.length === 0) {
-      setStatus('#ef4444', 'No issues found — try a different query or project key.', 100);
-      return;
-    }
-
-    jiraFetchedItems = parsed;
-
-    const list = document.getElementById('fetchedList');
-    list.innerHTML = parsed.map((item, i) => `
-      <div class="fetched-item">
-        <input type="checkbox" class="jira-check" data-idx="${i}" checked onchange="updateSelectedCount()" />
-        <div style="flex:1;min-width:0">
-          <div class="fetched-key">${escHtml(item.key || '—')}</div>
-          <div class="fetched-name">${escHtml(item.name || item.summary || 'Untitled')}</div>
-          <div class="fetched-meta">${escHtml(item.type || 'Issue')}${item.status ? ' · ' + escHtml(item.status) : ''}</div>
-        </div>
-      </div>`).join('');
-
-    document.getElementById('jiraResultsTitle').textContent = 'Select issues to import:';
-    document.getElementById('jiraResultsWrap').style.display = '';
-    document.getElementById('importBtn').style.display       = '';
-    document.getElementById('selectAll').checked             = true;
-    updateSelectedCount();
-
-  } catch (err) {
-    setStatus('#ef4444', 'Error: ' + err.message, 100);
-
-    const errWrap = document.getElementById('jiraErrorWrap');
-    errWrap.style.display = '';
-    errWrap.innerHTML = `<div class="notice notice-error" style="margin-top:12px">
-      <strong>Request failed:</strong> ${escHtml(err.message)}<br>
-      Check your API key in Settings, confirm your Atlassian MCP URL, and ensure your Jira account has the Atlassian Rovo MCP connected.
-    </div>`;
-
-    document.getElementById('connDot').classList.add('err');
-    document.getElementById('connLabel').textContent = 'Connection error';
-    console.error('[RICE] Jira fetch error:', err);
-  }
-}
-
-function toggleSelectAll(checked) {
-  document.querySelectorAll('.jira-check').forEach(cb => { cb.checked = checked; });
-  updateSelectedCount();
-}
-
-function updateSelectedCount() {
-  const total = document.querySelectorAll('.jira-check').length;
-  const sel   = document.querySelectorAll('.jira-check:checked').length;
-  document.getElementById('selectedCount').textContent = `${sel} of ${total} selected`;
-}
-
-function importSelected() {
-  const checked = document.querySelectorAll('.jira-check:checked');
-  const s       = getSettings();
-
-  /* Try to derive the Atlassian base from the MCP URL, e.g.
-     https://mcp.atlassian.com/v1/mcp → we can't know the instance,
-     but if the user's MCP URL contains a subdomain we try to guess it.
-     Fallback: store keyUrl as null and let user add it via Edit. */
-  let atlassianBase = null;
-  try {
-    const mcpUrl = new URL(s.mcpUrl || '');
-    /* Self-hosted instances often look like https://jira.company.com/rest/… */
-    if (!mcpUrl.hostname.endsWith('atlassian.com')) {
-      atlassianBase = mcpUrl.origin;
-    }
-  } catch {}
-
-  let count = 0;
-  checked.forEach(cb => {
-    const raw = jiraFetchedItems[parseInt(cb.dataset.idx)];
-    if (!raw) return;
-    const key = raw.key || null;
-    if (key && items.some(i => i.key === key)) return;
-
-    /* Build browse URL if we have a base or if raw includes a URL */
-    let keyUrl = raw.url || raw.keyUrl || null;
-    if (!keyUrl && key && atlassianBase) {
-      keyUrl = `${atlassianBase}/browse/${key}`;
-    }
-
-    items.push({
-      id:    'item-' + (nextId++),
-      name:  raw.name || raw.summary || 'Untitled',
-      key,
-      keyUrl,
-      type:  (raw.type || 'task').toLowerCase(),
-      desc:  raw.description || null,
-      reach: null, impact: null, conf: null, effort: null,
-    });
-    count++;
-  });
-
-  closeModal('jiraModal');
-  render();
-  showToast(`Imported ${count} item${count !== 1 ? 's' : ''} from Jira.`);
-}
-
-/* ================================================================
-   MODALS
-================================================================ */
-function closeModal(id) {
-  document.getElementById(id).classList.remove('open');
-}
-
-document.querySelectorAll('.modal-overlay').forEach(overlay => {
-  overlay.addEventListener('click', e => {
-    if (e.target === overlay) overlay.classList.remove('open');
-  });
-});
-
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
-  }
-});
-
-/* ================================================================
-   TOAST
-================================================================ */
-let toastTimer;
-function showToast(msg, isError = false) {
-  const t = document.getElementById('toast');
-  t.textContent  = msg;
-  t.className    = 'toast' + (isError ? ' error' : '') + ' show';
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.classList.remove('show'); }, 3000);
-}
-
-/* ================================================================
-   UTILITIES
-================================================================ */
-function escHtml(str) {
-  if (str === null || str === undefined) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-/* ================================================================
-   VALUE vs. EFFORT MATRIX
-================================================================ */
-let matrixVisible = true;
-let matrixHoverIdx = -1;
-
-function toggleMatrix() {
-  matrixVisible = !matrixVisible;
-  document.getElementById('matrixBody').style.display = matrixVisible ? '' : 'none';
-  const icon = document.getElementById('matrixToggleIcon');
-  if (matrixVisible) icon.classList.add('open');
-  else               icon.classList.remove('open');
-}
-
-/* Compute RIC value (numerator of RICE) for a single item */
-function calcValue(item) {
-  const r = parseFloat(item.reach);
-  const i = parseFloat(item.impact);
-  const c = parseFloat(item.conf);
-  if (!r || !i || !c) return null;
-  return r * i * (c / 100);
-}
-
-function renderMatrix() {
-  const canvas  = document.getElementById('matrixCanvas');
-  const wrap    = document.getElementById('matrixCanvasWrap');
-  const empty   = document.getElementById('matrixEmpty');
-  const legend  = document.getElementById('matrixLegend');
-
-  /* Collect plottable items (need value AND effort) */
-  const plottable = items.map(item => ({
-    ...item,
-    value:  calcValue(item),
-    effort: parseFloat(item.effort) || null,
-  })).filter(item => item.value !== null && item.effort !== null);
-
-  if (plottable.length === 0) {
-    empty.style.display  = '';
-    wrap.style.display   = 'none';
-    legend.style.display = 'none';
-    return;
-  }
-
-  empty.style.display  = 'none';
-  wrap.style.display   = '';
-  legend.style.display = '';
-
-  /* Canvas sizing — use parent width, fixed aspect ratio */
-  const W = wrap.offsetWidth || 600;
-  const H = Math.round(W * 0.36);
-  canvas.width  = W * window.devicePixelRatio;
-  canvas.height = H * window.devicePixelRatio;
-  canvas.style.width  = W + 'px';
-  canvas.style.height = H + 'px';
-
-  const ctx = canvas.getContext('2d');
-  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-
-  /* Margins for axis labels */
-  const PAD_L = 52, PAD_R = 16, PAD_T = 16, PAD_B = 44;
-  const CW = W - PAD_L - PAD_R;
-  const CH = H - PAD_T - PAD_B;
-
-  /* Data ranges — use median as the quadrant split */
-  const values  = plottable.map(d => d.value);
-  const efforts = plottable.map(d => d.effort);
-
-  const maxVal = Math.max(...values)   * 1.15;
-  const maxEff = Math.max(...efforts)  * 1.25;
-  const minVal = 0;
-  const minEff = 0;
-
-  /* Median split point */
-  const sortedV = [...values].sort((a,b) => a-b);
-  const sortedE = [...efforts].sort((a,b) => a-b);
-  const midVal  = sortedV[Math.floor(sortedV.length / 2)];
-  const midEff  = sortedE[Math.floor(sortedE.length / 2)];
-
-  /* Coordinate helpers */
-  function toX(v)  { return PAD_L + ((v - minVal) / (maxVal - minVal)) * CW; }
-  function toY(e)  { return PAD_T + CH - ((e - minEff) / (maxEff - minEff)) * CH; } /* inverted: high effort = top */
-  const midXpx = toX(midVal);
-  const midYpx = toY(midEff);
-
-  /* ── Quadrant fills ─────────────────────── */
-  /* Colors adapted from the reference: lavender for low-value, teal for high-value */
-  const qColors = {
-    timeSinks:   { fill: 'rgba(220,50,50,0.10)',  stroke: 'rgba(200,40,40,0.20)'  }, /* red    — avoid */
-    bigProjects: { fill: 'rgba(0,101,164,0.10)',  stroke: 'rgba(0,80,140,0.20)'   }, /* blue   — plan  */
-    fillIns:     { fill: 'rgba(120,120,130,0.08)',stroke: 'rgba(100,100,110,0.15)' }, /* gray   — maybe */
-    quickWins:   { fill: 'rgba(22,163,74,0.12)',  stroke: 'rgba(15,130,55,0.22)'  }, /* green  — do it */
+function deleteFromEdit(){const id=document.getElementById('edit-id').value;openDeleteItemModal(id);}
+
+
+/* roundRect polyfill for older browsers */
+if(!CanvasRenderingContext2D.prototype.roundRect){CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){r=Math.min(r,w/2,h/2);this.moveTo(x+r,y);this.lineTo(x+w-r,y);this.quadraticCurveTo(x+w,y,x+w,y+r);this.lineTo(x+w,y+h-r);this.quadraticCurveTo(x+w,y+h,x+w-r,y+h);this.lineTo(x+r,y+h);this.quadraticCurveTo(x,y+h,x,y+h-r);this.lineTo(x,y+r);this.quadraticCurveTo(x,y,x+r,y);this.closePath();return this;};}
+
+/* Matrix — X=Effort, Y=Impact */
+function renderMatrix(){
+  const canvas=document.getElementById('matrixCanvas'),wrap=document.getElementById('matrixCanvasWrap'),empty=document.getElementById('matrixEmpty'),legend=document.getElementById('matrixLegend');
+  const plottable=items.filter(it=>it.impact!==null&&it.effort!==null);
+  if(!plottable.length){empty.style.display='';wrap.style.display='none';legend.style.display='none';return;}
+  empty.style.display='none';wrap.style.display='';legend.style.display='';
+  const W=wrap.offsetWidth||640,H=Math.round(W*0.5),dpr=window.devicePixelRatio||1;
+  canvas.width=W*dpr;canvas.height=H*dpr;canvas.style.width=W+'px';canvas.style.height=H+'px';
+  const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+  const PL=60,PR=20,PT=20,PB=48,CW=W-PL-PR,CH=H-PT-PB;
+  const efforts=plottable.map(d=>d.effort),impacts=plottable.map(d=>d.impact);
+  const maxEff=Math.max(...efforts)*1.2||1,maxImp=3.2;
+  const meanEff=efforts.reduce((a,b)=>a+b,0)/efforts.length;
+  const meanImp=impacts.reduce((a,b)=>a+b,0)/impacts.length;
+  const toX=e=>PL+((e)/(maxEff))*CW;
+  const toY=i=>PT+CH-((i)/(maxImp))*CH;
+  const mxPx=toX(meanEff),myPx=toY(meanImp);
+  const Q={
+    qw:{fill:'rgba(22,163,74,.08)',stroke:'rgba(22,163,74,.2)',text:'rgb(14,110,50)',label:'Quick Wins',sub:'High impact, low effort'},
+    mp:{fill:'rgba(0,101,164,.08)',stroke:'rgba(0,80,140,.2)',text:'rgb(0,70,130)',label:'Major Projects',sub:'High impact, high effort'},
+    fi:{fill:'rgba(120,120,130,.06)',stroke:'rgba(100,100,110,.15)',text:'rgb(90,90,100)',label:'Fill-ins',sub:'Low impact, low effort'},
+    ts:{fill:'rgba(220,50,50,.08)',stroke:'rgba(200,40,40,.2)',text:'rgb(180,30,30)',label:'Time Sinks',sub:'Low impact, high effort'}
   };
-
-  function drawQuad(x, y, w, h, col, label, sub, textColor) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.roundRect(x, y, w, h, 8);
-    ctx.fillStyle   = col.fill;
-    ctx.fill();
-    ctx.strokeStyle = col.stroke;
-    ctx.lineWidth   = 1;
-    ctx.stroke();
-    ctx.restore();
-
-    ctx.save();
-    ctx.fillStyle    = textColor;
-    ctx.font         = `600 12px -apple-system,'Segoe UI',sans-serif`;
-    ctx.textAlign    = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(label, x + w / 2, y + h / 2 - 8);
-    ctx.fillStyle = textColor.replace(')', ',0.6)').replace('rgb','rgba');
-    ctx.font      = `11px -apple-system,'Segoe UI',sans-serif`;
-    ctx.fillText(sub, x + w / 2, y + h / 2 + 9);
+  function dQ(x,y,w,h,q,lp){
+    ctx.save();ctx.beginPath();ctx.roundRect(x,y,w,h,7);ctx.fillStyle=q.fill;ctx.fill();ctx.strokeStyle=q.stroke;ctx.lineWidth=1;ctx.stroke();
+    const lx=lp==='left'?x+10:x+w-10,ta=lp==='left'?'left':'right';
+    ctx.fillStyle=q.text;ctx.textAlign=ta;ctx.font=`600 11px -apple-system,'Segoe UI',sans-serif`;ctx.textBaseline='top';ctx.fillText(q.label,lx,y+14);
+    ctx.fillStyle=q.text.replace('rgb(','rgba(').replace(')',',0.65)');ctx.font=`10px -apple-system,'Segoe UI',sans-serif`;ctx.fillText(q.sub,lx,y+28);
     ctx.restore();
   }
-
-  /* Clamp quad rects to plot area */
-  const qLeft  = PAD_L, qTop = PAD_T;
-  const qW     = midXpx - PAD_L,  qH = midYpx - PAD_T;
-  const qW2    = W - PAD_R - midXpx, qH2 = H - PAD_B - midYpx;
-
-  drawQuad(qLeft,   qTop,     qW,  qH,  qColors.timeSinks,   'Time Sinks',   'High effort, low value',  'rgb(180,30,30)');
-  drawQuad(midXpx,  qTop,     qW2, qH,  qColors.bigProjects, 'Big Projects', 'High effort, high value', 'rgb(0,70,130)');
-  drawQuad(qLeft,   midYpx,   qW,  qH2, qColors.fillIns,     'Fill-ins',     'Low effort, low value',   'rgb(90,90,100)');
-  drawQuad(midXpx,  midYpx,   qW2, qH2, qColors.quickWins,   'Quick Wins',   'Low effort, high value',  'rgb(14,110,50)');
-
-  /* ── Dividing lines ─────────────────────── */
-  ctx.save();
-  ctx.strokeStyle = 'rgba(100,80,160,0.25)';
-  ctx.lineWidth   = 1.5;
-  ctx.setLineDash([5, 4]);
-  ctx.beginPath(); ctx.moveTo(midXpx, PAD_T); ctx.lineTo(midXpx, H - PAD_B); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(PAD_L, midYpx); ctx.lineTo(W - PAD_R, midYpx); ctx.stroke();
+  const qL=PL,qT=PT,qW=mxPx-PL,qH=myPx-PT,qW2=W-PR-mxPx,qH2=H-PB-myPx;
+  dQ(qL,qT,qW,qH,Q.qw,'left');dQ(mxPx,qT,qW2,qH,Q.mp,'right');dQ(qL,myPx,qW,qH2,Q.fi,'left');dQ(mxPx,myPx,qW2,qH2,Q.ts,'right');
+  ctx.save();ctx.strokeStyle='rgba(100,80,130,.2)';ctx.lineWidth=1.5;ctx.setLineDash([5,4]);
+  ctx.beginPath();ctx.moveTo(mxPx,PT);ctx.lineTo(mxPx,H-PB);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(PL,myPx);ctx.lineTo(W-PR,myPx);ctx.stroke();
   ctx.restore();
-
-  /* ── Axis lines ─────────────────────────── */
-  ctx.save();
-  ctx.strokeStyle = 'rgba(100,100,120,0.3)';
-  ctx.lineWidth   = 1;
-  ctx.beginPath();
-  ctx.moveTo(PAD_L, PAD_T); ctx.lineTo(PAD_L, H - PAD_B);
-  ctx.moveTo(PAD_L, H - PAD_B); ctx.lineTo(W - PAD_R, H - PAD_B);
-  ctx.stroke();
+  ctx.save();ctx.strokeStyle='rgba(100,100,120,.25)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(PL,PT);ctx.lineTo(PL,H-PB);ctx.lineTo(W-PR,H-PB);ctx.stroke();ctx.restore();
+  ctx.save();ctx.fillStyle='rgba(80,80,100,.7)';ctx.textBaseline='middle';
+  ctx.font=`600 10px -apple-system,'Segoe UI',sans-serif`;ctx.textAlign='center';ctx.fillText('Effort →',PL+CW/2,H-PB+32);
+  ctx.save();ctx.translate(16,PT+CH/2);ctx.rotate(-Math.PI/2);ctx.fillText('↑ Impact',0,0);ctx.restore();
+  ctx.font=`10px -apple-system,'Segoe UI',sans-serif`;
+  ctx.textAlign='left';ctx.fillText('Low',PL+2,H-PB+14);ctx.textAlign='right';ctx.fillText('High',W-PR,H-PB+14);
+  ctx.textAlign='right';ctx.fillText('High',PL-8,PT+4);ctx.fillText('Low',PL-8,H-PB-4);
   ctx.restore();
-
-  /* ── Axis labels ────────────────────────── */
-  ctx.save();
-  ctx.fillStyle    = 'rgba(80,80,100,0.7)';
-  ctx.font         = `11px -apple-system,'Segoe UI',sans-serif`;
-  ctx.textBaseline = 'middle';
-
-  /* X axis: Low / High and title */
-  ctx.textAlign = 'left';
-  ctx.fillText('Low', PAD_L + 2, H - PAD_B + 14);
-  ctx.textAlign = 'right';
-  ctx.fillText('High', W - PAD_R, H - PAD_B + 14);
-  ctx.textAlign = 'center';
-  ctx.font      = `600 11px -apple-system,'Segoe UI',sans-serif`;
-  ctx.fillText('← Value (Reach × Impact × Confidence%) →', PAD_L + CW / 2, H - PAD_B + 30);
-
-  /* Y axis: Low / High and title */
-  ctx.textAlign = 'right';
-  ctx.font      = `11px -apple-system,'Segoe UI',sans-serif`;
-  ctx.fillText('Low',  PAD_L - 6, H - PAD_B - 4);
-  ctx.fillText('High', PAD_L - 6, PAD_T + 4);
-  ctx.save();
-  ctx.translate(13, PAD_T + CH / 2);
-  ctx.rotate(-Math.PI / 2);
-  ctx.textAlign  = 'center';
-  ctx.font       = `600 11px -apple-system,'Segoe UI',sans-serif`;
-  ctx.fillStyle  = 'rgba(80,80,100,0.7)';
-  ctx.fillText('↑ Effort ↑', 0, 0);
-  ctx.restore();
-  ctx.restore();
-
-  /* ── Dot radius helper ──────────────────── */
-  const DOT_R = Math.max(5, Math.min(9, Math.round(CW / (plottable.length * 3 + 6))));
-
-  /* ── Dots ───────────────────────────────── */
-  const dotColors = {
-    timeSinks:   '#c0392b', /* red   */
-    bigProjects: '#0065A4', /* blue  */
-    fillIns:     '#888896', /* gray  */
-    quickWins:   '#16a34a', /* green */
-  };
-
-  function quadrantOf(v, e) {
-    const highV = v >= midVal;
-    const highE = e >= midEff;
-    if (highE && !highV)  return 'timeSinks';
-    if (highE && highV)   return 'bigProjects';
-    if (!highE && !highV) return 'fillIns';
-    return 'quickWins';
-  }
-
-  /* Store dot positions for hover */
-  canvas._dots = plottable.map((item) => {
-    const x  = toX(item.value);
-    const y  = toY(item.effort);
-    const q  = quadrantOf(item.value, item.effort);
-    const col = dotColors[q];
-
-    /* Shadow */
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(x, y, DOT_R + 2, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.08)';
-    ctx.fill();
-    ctx.restore();
-
-    /* Dot fill */
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(x, y, DOT_R, 0, Math.PI * 2);
-    ctx.fillStyle   = col;
-    ctx.strokeStyle = 'white';
-    ctx.lineWidth   = 1.5;
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-
-    /* Label: truncated item name */
-    const dotLabel = item.name.length > 18 ? item.name.slice(0, 16) + '…' : item.name;
-    ctx.save();
-    ctx.fillStyle    = '#2c2040';
-    ctx.font         = `600 12px -apple-system,'Segoe UI',sans-serif`;
-    ctx.textAlign    = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText(dotLabel, x, y - DOT_R - 2);
-    ctx.restore();
-
-    return { x, y, item, q };
+  const dotC={qw:'#16a34a',mp:'#0065A4',fi:'#888896',ts:'#c0392b'};
+  function quadOf(e,i){if(i>=meanImp&&e<meanEff)return 'qw';if(i>=meanImp&&e>=meanEff)return 'mp';if(i<meanImp&&e<meanEff)return 'fi';return 'ts';}
+  ctx.font=`600 12px -apple-system,'Segoe UI',sans-serif`;
+  canvas._dots=plottable.map(item=>{
+    const cx=toX(item.effort),cy=toY(item.impact),q=quadOf(item.effort,item.impact),col=dotC[q];
+    const label=item.name.length>15?item.name.slice(0,14)+'…':item.name;
+    const tw=ctx.measureText(label).width,bw=tw+20,bh=26;
+    const bx=Math.min(Math.max(cx-bw/2,PL+2),W-PR-bw-2),by=Math.min(Math.max(cy-bh/2,PT+2),H-PB-bh-2);
+    ctx.save();ctx.shadowColor='rgba(0,0,0,.1)';ctx.shadowBlur=4;ctx.shadowOffsetY=2;ctx.beginPath();ctx.roundRect(bx,by,bw,bh,6);ctx.fillStyle='rgba(255,255,255,.95)';ctx.fill();ctx.restore();
+    ctx.save();ctx.beginPath();ctx.roundRect(bx,by,bw,bh,6);ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.stroke();ctx.restore();
+    ctx.save();ctx.fillStyle=col;ctx.font=`600 12px -apple-system,'Segoe UI',sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(label,bx+bw/2,by+bh/2);ctx.restore();
+    return{cx,cy,bx,by,bw,bh,item,q};
   });
 }
-
-/* ── Hover tooltip ───────────────────────── */
-(function attachMatrixHover() {
-  const canvas  = document.getElementById('matrixCanvas');
-  const tooltip = document.getElementById('matrixTooltip');
-  const wrap    = document.getElementById('matrixCanvasWrap');
-
-  canvas.addEventListener('mousemove', e => {
-    if (!canvas._dots || canvas._dots.length === 0) return;
-    const rect  = canvas.getBoundingClientRect();
-    const mx    = e.clientX - rect.left;
-    const my    = e.clientY - rect.top;
-    const DOT_R = 12; /* hit target larger than visual */
-
-    let hit = null;
-    for (const dot of canvas._dots) {
-      const dx = dot.x - mx, dy = dot.y - my;
-      if (Math.sqrt(dx*dx + dy*dy) <= DOT_R) { hit = dot; break; }
-    }
-
-    if (hit) {
-      const qLabel = { timeSinks: 'Time Sink', bigProjects: 'Big Project', fillIns: 'Fill-in', quickWins: 'Quick Win' };
-      const v  = hit.item.value.toFixed(1);
-      const e2 = hit.item.effort;
-      tooltip.innerHTML = `<strong>${escHtml(hit.item.name)}</strong><br>
-        Value: ${v} &nbsp;·&nbsp; Effort: ${e2} mo<br>
-        <span style="opacity:0.75">${qLabel[hit.q]}</span>`;
-
-      /* Position tooltip so it stays inside the wrap */
-      const wW = wrap.offsetWidth, wH = wrap.offsetHeight;
-      let tx = mx + 12, ty = my - 8;
-      if (tx + 200 > wW) tx = mx - 210;
-      if (ty < 0)        ty = 4;
-      tooltip.style.left = tx + 'px';
-      tooltip.style.top  = ty + 'px';
-      tooltip.classList.add('visible');
-      canvas.style.cursor = 'pointer';
-    } else {
-      tooltip.classList.remove('visible');
-      canvas.style.cursor = 'crosshair';
-    }
+(function(){
+  const canvas=document.getElementById('matrixCanvas'),tooltip=document.getElementById('matrixTooltip'),wrap=document.getElementById('matrixCanvasWrap');
+  const qL={qw:'Quick Win',mp:'Major Project',fi:'Fill-in',ts:'Time Sink'};
+  canvas.addEventListener('mousemove',e=>{
+    if(!canvas._dots||!canvas._dots.length)return;
+    const rect=canvas.getBoundingClientRect(),mx=e.clientX-rect.left,my=e.clientY-rect.top;
+    let hit=null;for(const d of canvas._dots)if(mx>=d.bx&&mx<=d.bx+d.bw&&my>=d.by&&my<=d.by+d.bh){hit=d;break;}
+    if(hit){
+      const s=calcRice(hit.item.reach,hit.item.impact,hit.item.conf,hit.item.effort);
+      tooltip.innerHTML=`<strong>${escHtml(hit.item.name)}</strong><br>Impact: ${hit.item.impact} · Effort: ${hit.item.effort}mo${s!==null?'<br>RICE: '+s.toLocaleString():''}<br><span style="opacity:.75">${qL[hit.q]}</span>`;
+      const wW=wrap.offsetWidth;let tx=mx+14,ty=my-8;if(tx+210>wW)tx=mx-218;if(ty<0)ty=4;
+      tooltip.style.left=tx+'px';tooltip.style.top=ty+'px';tooltip.classList.add('visible');canvas.style.cursor='pointer';
+    }else{tooltip.classList.remove('visible');canvas.style.cursor='crosshair';}
   });
-
-  canvas.addEventListener('mouseleave', () => {
-    tooltip.classList.remove('visible');
-  });
-
-  /* Click a dot → open edit modal */
-  canvas.addEventListener('click', e => {
-    if (!canvas._dots) return;
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-    for (const dot of canvas._dots) {
-      const dx = dot.x - mx, dy = dot.y - my;
-      if (Math.sqrt(dx*dx + dy*dy) <= 14) {
-        openEditModal(dot.item.id);
-        break;
-      }
-    }
+  canvas.addEventListener('mouseleave',()=>tooltip.classList.remove('visible'));
+  canvas.addEventListener('click',e=>{
+    if(!canvas._dots)return;const rect=canvas.getBoundingClientRect(),mx=e.clientX-rect.left,my=e.clientY-rect.top;
+    for(const d of canvas._dots)if(mx>=d.bx&&mx<=d.bx+d.bw&&my>=d.by&&my<=d.by+d.bh){openEditModal(d.item.id);break;}
   });
 })();
+window.addEventListener('resize',()=>{if(matrixOpen)renderMatrix();});
 
-/* Re-render matrix on window resize */
-window.addEventListener('resize', () => { if (matrixVisible) renderMatrix(); });
+/* Accordion */
+function toggleSection(which){
+  const body=document.getElementById(which+'Body'),chev=document.getElementById(which+'Chevron'),hdr=document.getElementById(which+'Header');
+  const isOpen=body.classList.contains('open');
+  body.classList.toggle('open',!isOpen);chev.classList.toggle('open',!isOpen);hdr.classList.toggle('open',!isOpen);
+  if(which==='matrix'){matrixOpen=!isOpen;if(!isOpen)setTimeout(renderMatrix,50);}
+}
 
-/* ================================================================
-   INIT
-================================================================ */
-(function init() {
+/* Dropdowns */
+function toggleDropdown(id){closeAllDropdowns();document.getElementById(id+'-menu').classList.toggle('open');}
+function closeAllDropdowns(){document.querySelectorAll('.dropdown-menu').forEach(m=>m.classList.remove('open'));}
+document.addEventListener('click',e=>{if(!e.target.closest('.dropdown'))closeAllDropdowns();});
+
+/* Modals */
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal-overlay.open').forEach(m=>m.classList.remove('open'));});
+
+/* Toast */
+let tt;
+function showToast(msg,err=false){const t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(err?' error':'')+' show';clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),3000);}
+
+/* Escape */
+function escHtml(str){if(str===null||str===undefined)return'';return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+/* Init */
+(function(){
   loadItems();
-
-  /* Seed default demo items if first run */
-  if (items.length === 0) {
-    const base = 'https://mersgoodwill.atlassian.net/browse/';
-    items = [
-      {
-        id: 'item-1', name: 'Purchased Goods Reporting',
-        key: 'SB-2316', keyUrl: base + 'SB-2316',
-        type: 'story', desc: 'new goods report',
-        reach: 300, impact: 1, conf: 90, effort: 4,
-      },
-      {
-        id: 'item-2', name: 'Usability Study for Reporting Portal',
-        key: 'SB-2323', keyUrl: base + 'SB-2323',
-        type: 'story', desc: null,
-        reach: 300, impact: 2, conf: 98, effort: 9,
-      },
-      {
-        id: 'item-3', name: 'Mark Up Report',
-        key: 'SB-2161', keyUrl: base + 'SB-2161',
-        type: 'story', desc: 'see percentage of all items that were marked up',
-        reach: 200, impact: 3, conf: 95, effort: 10,
-      },
+  if(!items.length){
+    items=[
+      {id:'item-1',name:'Dark Mode Support',key:'',keyUrl:null,type:'story',desc:'User-requested theme support',reach:15000,impact:3,conf:100,effort:1},
+      {id:'item-2',name:'Mobile Push Notifications',key:'',keyUrl:null,type:'epic',desc:'Re-engagement and alerts',reach:7000,impact:3,conf:100,effort:4},
+      {id:'item-3',name:'Onboarding Wizard',key:'',keyUrl:null,type:'story',desc:'Guided first-run experience',reach:2000,impact:3,conf:100,effort:6},
+      {id:'item-4',name:'API Rate Limiter',key:'',keyUrl:null,type:'task',desc:'Protect backend from abuse',reach:5000,impact:1,conf:80,effort:5},
+      {id:'item-5',name:'CSV Export Feature',key:'',keyUrl:null,type:'story',desc:'Data portability for power users',reach:3000,impact:0.5,conf:90,effort:3},
     ];
-    nextId = 4;
-    saveItems();
-  }
-
-  const s = getSettings();
-  updateConnectionStatus(!!s.apiKey);
-  if (s.issueType) {
-    const el = document.getElementById('jira-type');
-    if (el) el.value = s.issueType;
+    nextId=6;saveItems();
   }
   render();
 })();
+
+/* Delete item with confirmation */
+let _pendingDeleteId = null;
+function openDeleteItemModal(id) {
+  const item = items.find(i=>i.id===id);
+  if (!item) return;
+  _pendingDeleteId = id;
+  document.getElementById('deleteItemLabel').textContent = item.name;
+  document.getElementById('delete-item-input').value = '';
+  document.getElementById('deleteItemBtn').disabled = true;
+  openModal('deleteItemModal');
+  setTimeout(()=>document.getElementById('delete-item-input').focus(), 100);
+}
+function checkDeleteItem() {
+  const val = document.getElementById('delete-item-input').value.trim();
+  const item = _pendingDeleteId ? items.find(i=>i.id===_pendingDeleteId) : null;
+  document.getElementById('deleteItemBtn').disabled = !item || val !== item.name;
+}
+function executeDeleteItem() {
+  if (!_pendingDeleteId) return;
+  const item = items.find(i=>i.id===_pendingDeleteId);
+  items = items.filter(i=>i.id!==_pendingDeleteId);
+  _pendingDeleteId = null;
+  closeModal('deleteItemModal');
+  closeModal('editModal');
+  render();
+  showToast(item ? `"${item.name}" deleted.` : 'Item deleted.');
+}
+
+/* Delete session with confirmation */
+let _pendingDeleteSessionId = null;
+function openDeleteSessionModal(id) {
+  const s = getSessions().find(x=>x.id===id);
+  if (!s) return;
+  _pendingDeleteSessionId = id;
+  document.getElementById('deleteSessionLabel').textContent = s.name;
+  document.getElementById('delete-session-input').value = '';
+  document.getElementById('deleteSessionBtn').disabled = true;
+  openModal('deleteSessionModal');
+  setTimeout(()=>document.getElementById('delete-session-input').focus(), 100);
+}
+function checkDeleteSession() {
+  const val = document.getElementById('delete-session-input').value.trim();
+  const s = _pendingDeleteSessionId ? getSessions().find(x=>x.id===_pendingDeleteSessionId) : null;
+  document.getElementById('deleteSessionBtn').disabled = !s || val !== s.name;
+}
+function executeDeleteSession() {
+  if (!_pendingDeleteSessionId) return;
+  const s = getSessions().find(x=>x.id===_pendingDeleteSessionId);
+  localStorage.setItem(SK.sessions, JSON.stringify(getSessions().filter(x=>x.id!==_pendingDeleteSessionId)));
+  _pendingDeleteSessionId = null;
+  closeModal('deleteSessionModal');
+  renderSessions();
+  showToast(s ? `Session "${s.name}" deleted.` : 'Session deleted.');
+}
 </script>
+
+<!-- Delete Item Confirm -->
+<div class="modal-overlay" id="deleteItemModal"><div class="modal narrow">
+  <div class="modal-title">Delete Item</div>
+  <div class="modal-sub">This action cannot be undone.</div>
+  <div class="notice-warn">Type the item name below to confirm deletion.</div>
+  <div class="form-group"><label class="form-label">Item: <strong id="deleteItemLabel"></strong></label><input class="form-input" id="delete-item-input" placeholder="Type item name to confirm" oninput="checkDeleteItem()"/></div>
+  <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('deleteItemModal')">Cancel</button><button class="btn btn-danger" id="deleteItemBtn" disabled onclick="executeDeleteItem()">Delete Item</button></div>
+</div></div>
+
+<!-- Delete Session Confirm -->
+<div class="modal-overlay" id="deleteSessionModal"><div class="modal narrow">
+  <div class="modal-title">Delete Session</div>
+  <div class="modal-sub">This action cannot be undone.</div>
+  <div class="notice-warn">Type the session name below to confirm deletion.</div>
+  <div class="form-group"><label class="form-label">Session: <strong id="deleteSessionLabel"></strong></label><input class="form-input" id="delete-session-input" placeholder="Type session name to confirm" oninput="checkDeleteSession()"/></div>
+  <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('deleteSessionModal')">Cancel</button><button class="btn btn-danger" id="deleteSessionBtn" disabled onclick="executeDeleteSession()">Delete Session</button></div>
+</div></div>
 </body>
 </html>
