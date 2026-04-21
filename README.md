@@ -29,6 +29,8 @@ Higher RICE score = higher priority.
 
 - **Load from Jira** — fetches live Epics, Stories, or Tasks from your workspace via the Anthropic API + Atlassian Rovo MCP
 - **Inline scoring table** — edit all four RICE inputs directly in the table; scores recalculate instantly
+- **Edit items** — click the pencil icon on any row to open a full edit modal (name, type, description, Jira URL, all RICE scores)
+- **Clickable Jira keys** — paste a URL like `https://mersgoodwill.atlassian.net/browse/SB-2161` and the key `SB-2161` renders as a live link back to the Kanban board; the key is auto-extracted from the URL as you type
 - **Auto-ranking** — sidebar shows a live priority ranking of all scored items
 - **Sort** — sort the table by RICE Score, Name, or Effort
 - **Export CSV** — downloads a date-stamped CSV sorted by RICE score, including all fields
@@ -102,8 +104,19 @@ The "Load from Jira" feature calls the **Anthropic API** with the **Atlassian Ro
 
 1. Click **Add Item**
 2. Fill in the name, optional Jira key, type, and description
-3. Optionally enter RICE scores in the modal, or fill them in directly in the table after adding
-4. Scores calculate automatically as you type
+3. **Paste a full Jira URL** (e.g. `https://mersgoodwill.atlassian.net/browse/SB-2161`) — the key `SB-2161` is extracted automatically and will render as a clickable link back to that board ticket
+4. Optionally enter RICE scores in the modal, or fill them in directly in the table after adding
+5. Scores calculate automatically as you type
+
+## Editing Items
+
+Click the **pencil icon** on any row to open the Edit modal. You can update:
+
+- Name, type, description
+- Jira URL (auto-extracts and updates the key)
+- All four RICE inputs
+
+You can also delete the item from the Edit modal using the **Delete item** button.
 
 ---
 

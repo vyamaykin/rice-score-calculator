@@ -235,8 +235,19 @@
     display: inline-flex; align-items: center; justify-content: center;
     color: var(--text-muted); transition: all 0.15s;
   }
-  .action-btn:hover { background: #fee2e2; color: var(--red); }
-  .action-btn svg   { width: 13px; height: 13px; }
+  .action-btn:hover        { background: #fee2e2; color: var(--red); }
+  .action-btn.edit:hover   { background: #eff6ff; color: var(--blue); }
+  .action-btn svg          { width: 13px; height: 13px; }
+  .action-cell             { display: flex; align-items: center; justify-content: center; gap: 2px; }
+
+  .key-link {
+    font-size: 11px; font-weight: 700; color: var(--jira-blue);
+    font-family: monospace; text-decoration: none; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 3px;
+  }
+  .key-link:hover { text-decoration: underline; }
+  .key-link svg   { width: 10px; height: 10px; opacity: 0.6; flex-shrink: 0; }
+  .key-plain      { font-size: 11px; font-weight: 700; color: var(--jira-blue); font-family: monospace; }
 
   /* ── Empty state ──────────────────────────── */
   .empty-state { padding: 52px 24px; text-align: center; }
@@ -467,6 +478,7 @@
             <th style="width:62px" class="center">Effort</th>
             <th style="width:92px" class="center">RICE Score</th>
             <th style="width:34px"></th>
+            <th style="width:60px"></th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
@@ -607,7 +619,7 @@
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Jira Key</label>
-        <input class="form-input" id="inp-key" placeholder="e.g. PROJ-42" />
+        <input class="form-input" id="inp-key" placeholder="e.g. SB-2161" />
       </div>
       <div class="form-group">
         <label class="form-label">Type</label>
@@ -619,6 +631,12 @@
           <option value="bug">Bug</option>
         </select>
       </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Jira URL</label>
+      <input class="form-input" id="inp-keyurl" placeholder="https://mersgoodwill.atlassian.net/browse/SB-2161"
+        oninput="autoExtractKey('inp-keyurl','inp-key')" />
+      <div class="form-hint">Paste the full Jira link — the key will be auto-filled from the URL.</div>
     </div>
     <div class="form-group">
       <label class="form-label">Description</label>
@@ -656,6 +674,77 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('addModal')">Cancel</button>
       <button class="btn btn-primary" onclick="submitAddItem()">Add Item</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Item Modal ── -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-title">Edit Item</div>
+    <div class="modal-sub">Update the details and scores for this item</div>
+
+    <input type="hidden" id="edit-id" />
+
+    <div class="form-group">
+      <label class="form-label">Item Name <span style="color:var(--red)">*</span></label>
+      <input class="form-input" id="edit-name" placeholder="e.g. Revamp checkout flow" />
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Jira Key</label>
+        <input class="form-input" id="edit-key" placeholder="e.g. SB-2161" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select class="form-input" id="edit-type">
+          <option value="manual">Manual</option>
+          <option value="epic">Epic</option>
+          <option value="story">Story</option>
+          <option value="task">Task</option>
+          <option value="bug">Bug</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Jira URL</label>
+      <input class="form-input" id="edit-keyurl" placeholder="https://mersgoodwill.atlassian.net/browse/SB-2161"
+        oninput="autoExtractKey('edit-keyurl','edit-key')" />
+      <div class="form-hint">Paste the full Jira link — the key will be auto-filled. The key shows as a clickable link in the table.</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <input class="form-input" id="edit-desc" placeholder="Brief description (optional)" />
+    </div>
+
+    <div class="score-section">
+      <div class="score-section-title">RICE Scores</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" style="color:#7c3aed">Reach</label>
+          <input class="form-input" id="edit-reach" type="number" min="0" step="1" placeholder="users / quarter" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="color:#1d4ed8">Impact</label>
+          <input class="form-input" id="edit-impact" type="number" min="0" max="3" step="0.25" placeholder="0.25 – 3" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" style="color:#15803d">Confidence %</label>
+          <input class="form-input" id="edit-conf" type="number" min="0" max="100" step="5" placeholder="0 – 100" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="color:#92400e">Effort</label>
+          <input class="form-input" id="edit-effort" type="number" min="0.1" step="0.5" placeholder="person-months" />
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-danger" style="margin-right:auto" onclick="deleteFromEdit()">Delete item</button>
+      <button class="btn btn-secondary" onclick="closeModal('editModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitEditItem()">Save Changes</button>
     </div>
   </div>
 </div>
@@ -841,6 +930,40 @@ function scoreColor(s) {
 }
 
 /* ================================================================
+   KEY RENDERING & URL HELPERS
+================================================================ */
+function renderKey(item) {
+  const label = escHtml(item.key || '—');
+  if (item.keyUrl && item.key) {
+    return `<a class="key-link" href="${escHtml(item.keyUrl)}" target="_blank" rel="noopener noreferrer"
+      title="Open ${escHtml(item.key)} in Jira">
+      ${label}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 0 1 2h3"/>
+        <polyline points="15 3 21 3 21 9"/>
+        <line x1="10" y1="14" x2="21" y2="3"/>
+      </svg>
+    </a>`;
+  }
+  return `<span class="key-plain">${label}</span>`;
+}
+
+/* Extract issue key (e.g. SB-2161) from a Jira browse URL */
+function extractKeyFromUrl(url) {
+  if (!url) return null;
+  const m = url.match(/\/browse\/([A-Z][A-Z0-9]*-\d+)/i);
+  return m ? m[1].toUpperCase() : null;
+}
+
+/* Called oninput on any URL field; fills the paired key field if key is empty or was auto-set */
+function autoExtractKey(urlFieldId, keyFieldId) {
+  const url = document.getElementById(urlFieldId).value.trim();
+  const keyField = document.getElementById(keyFieldId);
+  const extracted = extractKeyFromUrl(url);
+  if (extracted) keyField.value = extracted;
+}
+
+/* ================================================================
    RENDER
 ================================================================ */
 function render() {
@@ -883,7 +1006,7 @@ function render() {
 
     return `<tr data-id="${item.id}" class="${idx === 0 && score ? 'top-row' : ''}">
       <td class="center"><span class="rank-badge ${rankClass}">${idx + 1}</span></td>
-      <td><span class="item-key">${escHtml(item.key || '—')}</span></td>
+      <td>${renderKey(item)}</td>
       <td>
         <div class="item-name">${escHtml(item.name)}</div>
         <div style="margin-top:3px">
@@ -926,13 +1049,21 @@ function render() {
         </div>
       </td>
       <td class="center">
-        <button class="action-btn" onclick="removeItem('${item.id}')" title="Remove item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="3 6 5 6 21 6"/>
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-            <path d="M10 11v6"/><path d="M14 11v6"/>
-          </svg>
-        </button>
+        <div class="action-cell">
+          <button class="action-btn edit" onclick="openEditModal('${item.id}')" title="Edit item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
+          <button class="action-btn" onclick="removeItem('${item.id}')" title="Delete item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+              <path d="M10 11v6"/><path d="M14 11v6"/>
+            </svg>
+          </button>
+        </div>
       </td>
     </tr>`;
   }).join('');
@@ -1023,12 +1154,77 @@ function setSort(s) {
    ADD ITEM MODAL
 ================================================================ */
 function openAddModal() {
-  ['inp-name','inp-key','inp-desc','inp-reach','inp-impact','inp-conf','inp-effort'].forEach(id => {
+  ['inp-name','inp-key','inp-keyurl','inp-desc','inp-reach','inp-impact','inp-conf','inp-effort'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
   document.getElementById('addModal').classList.add('open');
   setTimeout(() => document.getElementById('inp-name').focus(), 100);
+}
+
+/* ── Edit Item ── */
+function openEditModal(id) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+
+  document.getElementById('edit-id').value      = id;
+  document.getElementById('edit-name').value    = item.name || '';
+  document.getElementById('edit-key').value     = item.key  || '';
+  document.getElementById('edit-keyurl').value  = item.keyUrl || '';
+  document.getElementById('edit-desc').value    = item.desc || '';
+  document.getElementById('edit-reach').value   = item.reach  !== null ? item.reach  : '';
+  document.getElementById('edit-impact').value  = item.impact !== null ? item.impact : '';
+  document.getElementById('edit-conf').value    = item.conf   !== null ? item.conf   : '';
+  document.getElementById('edit-effort').value  = item.effort !== null ? item.effort : '';
+
+  const typeEl = document.getElementById('edit-type');
+  typeEl.value = item.type || 'manual';
+
+  document.getElementById('editModal').classList.add('open');
+  setTimeout(() => document.getElementById('edit-name').focus(), 100);
+}
+
+function submitEditItem() {
+  const id   = document.getElementById('edit-id').value;
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+
+  const name = document.getElementById('edit-name').value.trim();
+  if (!name) {
+    document.getElementById('edit-name').focus();
+    document.getElementById('edit-name').style.borderColor = 'var(--red)';
+    return;
+  }
+  document.getElementById('edit-name').style.borderColor = '';
+
+  const keyUrl = document.getElementById('edit-keyurl').value.trim() || null;
+  const rawKey = document.getElementById('edit-key').value.trim();
+  const key    = rawKey || (keyUrl ? extractKeyFromUrl(keyUrl) : null);
+
+  item.name   = name;
+  item.key    = key;
+  item.keyUrl = keyUrl;
+  item.type   = document.getElementById('edit-type').value;
+  item.desc   = document.getElementById('edit-desc').value.trim() || null;
+  item.reach  = parseFloat(document.getElementById('edit-reach').value)  || null;
+  item.impact = parseFloat(document.getElementById('edit-impact').value) || null;
+  item.conf   = parseFloat(document.getElementById('edit-conf').value)   || null;
+  item.effort = parseFloat(document.getElementById('edit-effort').value) || null;
+
+  closeModal('editModal');
+  render();
+  showToast(`"${name}" updated.`);
+}
+
+function deleteFromEdit() {
+  const id   = document.getElementById('edit-id').value;
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  if (!confirm(`Delete "${item.name}"? This cannot be undone.`)) return;
+  items = items.filter(i => i.id !== id);
+  closeModal('editModal');
+  render();
+  showToast(`"${item.name}" deleted.`);
 }
 
 function submitAddItem() {
@@ -1044,11 +1240,15 @@ function submitAddItem() {
   const impact = parseFloat(document.getElementById('inp-impact').value) || null;
   const conf   = parseFloat(document.getElementById('inp-conf').value)   || null;
   const effort = parseFloat(document.getElementById('inp-effort').value) || null;
+  const keyUrl = document.getElementById('inp-keyurl').value.trim() || null;
+  const rawKey = document.getElementById('inp-key').value.trim();
+  const key    = rawKey || (keyUrl ? extractKeyFromUrl(keyUrl) : null);
 
   items.push({
     id:     'item-' + (nextId++),
     name,
-    key:    document.getElementById('inp-key').value.trim() || null,
+    key,
+    keyUrl,
     type:   document.getElementById('inp-type').value,
     desc:   document.getElementById('inp-desc').value.trim() || null,
     reach, impact, conf, effort,
@@ -1288,17 +1488,39 @@ function updateSelectedCount() {
 
 function importSelected() {
   const checked = document.querySelectorAll('.jira-check:checked');
+  const s       = getSettings();
+
+  /* Try to derive the Atlassian base from the MCP URL, e.g.
+     https://mcp.atlassian.com/v1/mcp → we can't know the instance,
+     but if the user's MCP URL contains a subdomain we try to guess it.
+     Fallback: store keyUrl as null and let user add it via Edit. */
+  let atlassianBase = null;
+  try {
+    const mcpUrl = new URL(s.mcpUrl || '');
+    /* Self-hosted instances often look like https://jira.company.com/rest/… */
+    if (!mcpUrl.hostname.endsWith('atlassian.com')) {
+      atlassianBase = mcpUrl.origin;
+    }
+  } catch {}
+
   let count = 0;
   checked.forEach(cb => {
     const raw = jiraFetchedItems[parseInt(cb.dataset.idx)];
     if (!raw) return;
-    /* Skip duplicates by key */
     const key = raw.key || null;
     if (key && items.some(i => i.key === key)) return;
+
+    /* Build browse URL if we have a base or if raw includes a URL */
+    let keyUrl = raw.url || raw.keyUrl || null;
+    if (!keyUrl && key && atlassianBase) {
+      keyUrl = `${atlassianBase}/browse/${key}`;
+    }
+
     items.push({
       id:    'item-' + (nextId++),
       name:  raw.name || raw.summary || 'Untitled',
       key,
+      keyUrl,
       type:  (raw.type || 'task').toLowerCase(),
       desc:  raw.description || null,
       reach: null, impact: null, conf: null, effort: null,
