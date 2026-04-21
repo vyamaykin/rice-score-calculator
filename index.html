@@ -388,6 +388,88 @@
   .toast.show { opacity: 1; transform: translateY(0); }
   .toast.error { background: #991b1b; }
 
+  .sort-select {
+    padding: 5px 8px; border-radius: 5px; border: 1px solid var(--border-strong);
+    font-size: 11px; background: var(--card); color: var(--text);
+    cursor: pointer; font-family: inherit;
+  }
+  .sort-select:focus { outline: none; border-color: var(--blue); }
+
+  .move-btn {
+    width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--border);
+    background: var(--surface); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--text-muted); transition: all 0.12s; flex-shrink: 0;
+  }
+  .move-btn:hover   { background: var(--blue-dark); color: white; border-color: var(--blue-dark); }
+  .move-btn:disabled { opacity: 0.25; cursor: not-allowed; pointer-events: none; }
+  .move-btn svg     { width: 11px; height: 11px; }
+  .matrix-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .matrix-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+  }
+  .matrix-header:hover { background: #fafbfc; }
+  .matrix-title-row { display: flex; align-items: center; gap: 8px; }
+  .matrix-title { font-size: 12px; font-weight: 700; color: var(--text); }
+  .matrix-subtitle { font-size: 11px; color: var(--text-muted); }
+  .matrix-toggle-icon { width: 16px; height: 16px; color: var(--text-muted); transition: transform 0.2s; }
+  .matrix-toggle-icon.open { transform: rotate(180deg); }
+  .matrix-body { padding: 12px 16px 16px; }
+  .matrix-canvas-wrap {
+    position: relative;
+    width: 100%;
+  }
+  #matrixCanvas {
+    display: block;
+    width: 100%;
+    cursor: crosshair;
+  }
+  .matrix-tooltip {
+    position: absolute;
+    background: var(--blue-dark);
+    color: white;
+    font-size: 11px;
+    line-height: 1.5;
+    padding: 6px 10px;
+    border-radius: 6px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+    z-index: 10;
+    max-width: 220px;
+    white-space: normal;
+  }
+  .matrix-tooltip.visible { opacity: 1; }
+  .matrix-empty {
+    text-align: center;
+    padding: 32px 16px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .matrix-legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-muted); }
+  .legend-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
   /* ── Print ────────────────────────────────── */
   @media print {
     .topbar, .toolbar, .side-panel, .modal-overlay { display: none !important; }
@@ -438,6 +520,32 @@
       </div>
     </div>
 
+    <!-- Value vs. Effort Matrix -->
+    <div class="matrix-wrap" id="matrixWrap">
+      <div class="matrix-header" onclick="toggleMatrix()">
+        <div class="matrix-title-row">
+          <span class="matrix-title">Value vs. Effort Matrix</span>
+          <span class="matrix-subtitle">X = Reach × Impact × Confidence% &nbsp;·&nbsp; Y = Effort</span>
+        </div>
+        <svg class="matrix-toggle-icon open" id="matrixToggleIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </div>
+      <div class="matrix-body" id="matrixBody">
+        <div class="matrix-empty" id="matrixEmpty">Add and score items to see them plotted here.</div>
+        <div class="matrix-canvas-wrap" id="matrixCanvasWrap" style="display:none">
+          <canvas id="matrixCanvas"></canvas>
+          <div class="matrix-tooltip" id="matrixTooltip"></div>
+        </div>
+        <div class="matrix-legend" id="matrixLegend" style="display:none">
+          <div class="legend-item"><div class="legend-dot" style="background:#c0392b"></div>Time Sinks — high effort, low value</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#0065A4"></div>Big Projects — high effort, high value</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#888896"></div>Fill-ins — low effort, low value</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#16a34a"></div>Quick Wins — low effort, high value</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Toolbar -->
     <div class="toolbar">
       <button class="btn btn-jira" onclick="openJiraModal()">
@@ -458,9 +566,16 @@
       </button>
       <div class="toolbar-right">
         <span class="sort-label">Sort by</span>
-        <button class="sort-btn active" id="sort-score"  onclick="setSort('score')">RICE Score</button>
-        <button class="sort-btn"        id="sort-name"   onclick="setSort('name')">Name</button>
-        <button class="sort-btn"        id="sort-effort" onclick="setSort('effort')">Effort</button>
+        <select class="sort-select" id="sortSelect" onchange="setSort(this.value)">
+          <option value="score">RICE Score</option>
+          <option value="manual">Manual Order ↕</option>
+          <option value="key">Jira Key</option>
+          <option value="name">Name</option>
+          <option value="reach">Reach</option>
+          <option value="impact">Impact</option>
+          <option value="conf">Confidence %</option>
+          <option value="effort">Effort</option>
+        </select>
       </div>
     </div>
 
@@ -470,6 +585,7 @@
         <thead>
           <tr>
             <th style="width:36px">#</th>
+            <th style="width:50px" class="center" id="th-move" style="display:none"></th>
             <th style="width:96px">Key</th>
             <th>Project / Item</th>
             <th style="width:60px" class="center">Reach</th>
@@ -477,8 +593,7 @@
             <th style="width:70px" class="center">Conf %</th>
             <th style="width:62px" class="center">Effort</th>
             <th style="width:92px" class="center">RICE Score</th>
-            <th style="width:34px"></th>
-            <th style="width:60px"></th>
+            <th style="width:60px" class="center"></th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
@@ -597,6 +712,18 @@
         <option value="Task">Task</option>
         <option value="any">Any</option>
       </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Manual Priority Adjustment Rate</label>
+      <select class="form-input" id="settings-adjrate">
+        <option value="0.03">3% per step</option>
+        <option value="0.05" selected>5% per step (default)</option>
+        <option value="0.08">8% per step</option>
+        <option value="0.10">10% per step</option>
+        <option value="0.15">15% per step</option>
+      </select>
+      <div class="form-hint">When you move an item up/down in Manual Order, Reach, Impact, and Confidence adjust by this percentage.</div>
     </div>
 
     <div class="modal-footer">
@@ -848,9 +975,10 @@ function getSettings() {
 
 function openSettings() {
   const s = getSettings();
-  document.getElementById('settings-apikey').value   = s.apiKey    || '';
-  document.getElementById('settings-mcpurl').value   = s.mcpUrl    || 'https://mcp.atlassian.com/v1/mcp';
+  document.getElementById('settings-apikey').value    = s.apiKey    || '';
+  document.getElementById('settings-mcpurl').value    = s.mcpUrl    || 'https://mcp.atlassian.com/v1/mcp';
   document.getElementById('settings-issuetype').value = s.issueType || 'Epic';
+  document.getElementById('settings-adjrate').value   = s.adjRate   || '0.05';
   document.getElementById('settingsModal').classList.add('open');
 }
 
@@ -859,6 +987,7 @@ function saveSettings() {
     apiKey:    document.getElementById('settings-apikey').value.trim(),
     mcpUrl:    document.getElementById('settings-mcpurl').value.trim() || 'https://mcp.atlassian.com/v1/mcp',
     issueType: document.getElementById('settings-issuetype').value,
+    adjRate:   parseFloat(document.getElementById('settings-adjrate').value) || 0.05,
   };
   localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(s));
   closeModal('settingsModal');
@@ -980,6 +1109,7 @@ function render() {
     emptyState.style.display = '';
     mainTable.style.display  = 'none';
     updateSidebar([]);
+    renderMatrix();
     return;
   }
 
@@ -995,6 +1125,11 @@ function render() {
   if      (sortBy === 'score')  withScores.sort((a, b) => (b.score || 0) - (a.score || 0));
   else if (sortBy === 'name')   withScores.sort((a, b) => a.name.localeCompare(b.name));
   else if (sortBy === 'effort') withScores.sort((a, b) => (a.effort || Infinity) - (b.effort || Infinity));
+  else if (sortBy === 'reach')  withScores.sort((a, b) => (b.reach  || 0) - (a.reach  || 0));
+  else if (sortBy === 'impact') withScores.sort((a, b) => (b.impact || 0) - (a.impact || 0));
+  else if (sortBy === 'conf')   withScores.sort((a, b) => (b.conf   || 0) - (a.conf   || 0));
+  else if (sortBy === 'key')    withScores.sort((a, b) => (a.key || '').localeCompare(b.key || '', undefined, {numeric: true}));
+  /* 'manual' — preserve items array order (already set above) */
 
   const maxScore = Math.max(...withScores.map(i => i.score || 0), 1);
 
@@ -1006,6 +1141,16 @@ function render() {
 
     return `<tr data-id="${item.id}" class="${idx === 0 && score ? 'top-row' : ''}">
       <td class="center"><span class="rank-badge ${rankClass}">${idx + 1}</span></td>
+      <td class="center" id="move-col-${item.id}" style="display:${sortBy==='manual'?'':'none'}">
+        <div style="display:flex;flex-direction:column;gap:2px;align-items:center">
+          <button class="move-btn" onclick="moveItem('${item.id}',-1)" title="Move up" ${idx===0?'disabled':''}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+          </button>
+          <button class="move-btn" onclick="moveItem('${item.id}',1)" title="Move down" ${idx===withScores.length-1?'disabled':''}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+        </div>
+      </td>
       <td>${renderKey(item)}</td>
       <td>
         <div class="item-name">${escHtml(item.name)}</div>
@@ -1017,29 +1162,25 @@ function render() {
       <td class="center">
         <input class="score-input reach" type="number" min="0" step="1"
           value="${item.reach !== null && item.reach !== undefined ? item.reach : ''}"
-          placeholder="—"
-          onchange="updateField('${item.id}', 'reach', this.value)"
+          placeholder="—" onchange="updateField('${item.id}', 'reach', this.value)"
           title="Reach: users impacted per quarter" />
       </td>
       <td class="center">
         <input class="score-input impact" type="number" min="0" max="3" step="0.25"
           value="${item.impact !== null && item.impact !== undefined ? item.impact : ''}"
-          placeholder="—"
-          onchange="updateField('${item.id}', 'impact', this.value)"
+          placeholder="—" onchange="updateField('${item.id}', 'impact', this.value)"
           title="Impact: 0.25 / 0.5 / 1 / 2 / 3" />
       </td>
       <td class="center">
         <input class="score-input conf" type="number" min="0" max="100" step="5"
           value="${item.conf !== null && item.conf !== undefined ? item.conf : ''}"
-          placeholder="—"
-          onchange="updateField('${item.id}', 'conf', this.value)"
+          placeholder="—" onchange="updateField('${item.id}', 'conf', this.value)"
           title="Confidence: percentage (e.g. 80)" />
       </td>
       <td class="center">
         <input class="score-input effort" type="number" min="0.1" step="0.5"
           value="${item.effort !== null && item.effort !== undefined ? item.effort : ''}"
-          placeholder="—"
-          onchange="updateField('${item.id}', 'effort', this.value)"
+          placeholder="—" onchange="updateField('${item.id}', 'effort', this.value)"
           title="Effort: person-months" />
       </td>
       <td class="center">
@@ -1070,6 +1211,7 @@ function render() {
 
   updateSidebar(withScores);
   saveItems();
+  if (matrixVisible) renderMatrix();
 }
 
 /* ================================================================
@@ -1133,6 +1275,34 @@ function removeItem(id) {
   render();
 }
 
+function moveItem(id, dir) {
+  /* dir: -1 = up (higher priority), +1 = down (lower priority) */
+  const idx = items.findIndex(i => i.id === id);
+  if (idx < 0) return;
+  const swapIdx = idx + dir;
+  if (swapIdx < 0 || swapIdx >= items.length) return;
+
+  /* Swap positions in the array */
+  [items[idx], items[swapIdx]] = [items[swapIdx], items[idx]];
+
+  /* Apply proportional R/I/C adjustment to the moved item */
+  const rate = getSettings().adjRate || 0.05;
+  const item = items[swapIdx]; /* item is now at its new position */
+  const factor = dir < 0 ? (1 + rate) : (1 - rate); /* up = boost, down = reduce */
+
+  if (item.reach  !== null) item.reach  = Math.max(0, Math.round(item.reach  * factor));
+  if (item.impact !== null) {
+    const raw = Math.min(3, Math.max(0.25, item.impact * factor));
+    /* Snap to nearest standard impact value: 0.25, 0.5, 1, 2, 3 */
+    const steps = [0.25, 0.5, 1, 2, 3];
+    item.impact = steps.reduce((prev, cur) => Math.abs(cur - raw) < Math.abs(prev - raw) ? cur : prev);
+  }
+  if (item.conf !== null) item.conf = Math.min(100, Math.max(1, Math.round(item.conf * factor)));
+
+  render();
+  showToast(`Moved ${dir < 0 ? 'up ↑' : 'down ↓'} · R/I/C adjusted ${dir < 0 ? '+' : '-'}${Math.round(rate*100)}%`);
+}
+
 function clearAll() {
   if (!confirm(`Clear all ${items.length} item${items.length !== 1 ? 's' : ''}? This cannot be undone.`)) return;
   items = [];
@@ -1145,8 +1315,8 @@ function clearAll() {
 ================================================================ */
 function setSort(s) {
   sortBy = s;
-  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('sort-' + s).classList.add('active');
+  const sel = document.getElementById('sortSelect');
+  if (sel) sel.value = s;
   render();
 }
 
@@ -1577,10 +1747,337 @@ function escHtml(str) {
 }
 
 /* ================================================================
+   VALUE vs. EFFORT MATRIX
+================================================================ */
+let matrixVisible = true;
+let matrixHoverIdx = -1;
+
+function toggleMatrix() {
+  matrixVisible = !matrixVisible;
+  document.getElementById('matrixBody').style.display = matrixVisible ? '' : 'none';
+  const icon = document.getElementById('matrixToggleIcon');
+  if (matrixVisible) icon.classList.add('open');
+  else               icon.classList.remove('open');
+}
+
+/* Compute RIC value (numerator of RICE) for a single item */
+function calcValue(item) {
+  const r = parseFloat(item.reach);
+  const i = parseFloat(item.impact);
+  const c = parseFloat(item.conf);
+  if (!r || !i || !c) return null;
+  return r * i * (c / 100);
+}
+
+function renderMatrix() {
+  const canvas  = document.getElementById('matrixCanvas');
+  const wrap    = document.getElementById('matrixCanvasWrap');
+  const empty   = document.getElementById('matrixEmpty');
+  const legend  = document.getElementById('matrixLegend');
+
+  /* Collect plottable items (need value AND effort) */
+  const plottable = items.map(item => ({
+    ...item,
+    value:  calcValue(item),
+    effort: parseFloat(item.effort) || null,
+  })).filter(item => item.value !== null && item.effort !== null);
+
+  if (plottable.length === 0) {
+    empty.style.display  = '';
+    wrap.style.display   = 'none';
+    legend.style.display = 'none';
+    return;
+  }
+
+  empty.style.display  = 'none';
+  wrap.style.display   = '';
+  legend.style.display = '';
+
+  /* Canvas sizing — use parent width, fixed aspect ratio */
+  const W = wrap.offsetWidth || 600;
+  const H = Math.round(W * 0.36);
+  canvas.width  = W * window.devicePixelRatio;
+  canvas.height = H * window.devicePixelRatio;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+  /* Margins for axis labels */
+  const PAD_L = 52, PAD_R = 16, PAD_T = 16, PAD_B = 44;
+  const CW = W - PAD_L - PAD_R;
+  const CH = H - PAD_T - PAD_B;
+
+  /* Data ranges — use median as the quadrant split */
+  const values  = plottable.map(d => d.value);
+  const efforts = plottable.map(d => d.effort);
+
+  const maxVal = Math.max(...values)   * 1.15;
+  const maxEff = Math.max(...efforts)  * 1.25;
+  const minVal = 0;
+  const minEff = 0;
+
+  /* Median split point */
+  const sortedV = [...values].sort((a,b) => a-b);
+  const sortedE = [...efforts].sort((a,b) => a-b);
+  const midVal  = sortedV[Math.floor(sortedV.length / 2)];
+  const midEff  = sortedE[Math.floor(sortedE.length / 2)];
+
+  /* Coordinate helpers */
+  function toX(v)  { return PAD_L + ((v - minVal) / (maxVal - minVal)) * CW; }
+  function toY(e)  { return PAD_T + CH - ((e - minEff) / (maxEff - minEff)) * CH; } /* inverted: high effort = top */
+  const midXpx = toX(midVal);
+  const midYpx = toY(midEff);
+
+  /* ── Quadrant fills ─────────────────────── */
+  /* Colors adapted from the reference: lavender for low-value, teal for high-value */
+  const qColors = {
+    timeSinks:   { fill: 'rgba(220,50,50,0.10)',  stroke: 'rgba(200,40,40,0.20)'  }, /* red    — avoid */
+    bigProjects: { fill: 'rgba(0,101,164,0.10)',  stroke: 'rgba(0,80,140,0.20)'   }, /* blue   — plan  */
+    fillIns:     { fill: 'rgba(120,120,130,0.08)',stroke: 'rgba(100,100,110,0.15)' }, /* gray   — maybe */
+    quickWins:   { fill: 'rgba(22,163,74,0.12)',  stroke: 'rgba(15,130,55,0.22)'  }, /* green  — do it */
+  };
+
+  function drawQuad(x, y, w, h, col, label, sub, textColor) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 8);
+    ctx.fillStyle   = col.fill;
+    ctx.fill();
+    ctx.strokeStyle = col.stroke;
+    ctx.lineWidth   = 1;
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.fillStyle    = textColor;
+    ctx.font         = `600 12px -apple-system,'Segoe UI',sans-serif`;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, x + w / 2, y + h / 2 - 8);
+    ctx.fillStyle = textColor.replace(')', ',0.6)').replace('rgb','rgba');
+    ctx.font      = `11px -apple-system,'Segoe UI',sans-serif`;
+    ctx.fillText(sub, x + w / 2, y + h / 2 + 9);
+    ctx.restore();
+  }
+
+  /* Clamp quad rects to plot area */
+  const qLeft  = PAD_L, qTop = PAD_T;
+  const qW     = midXpx - PAD_L,  qH = midYpx - PAD_T;
+  const qW2    = W - PAD_R - midXpx, qH2 = H - PAD_B - midYpx;
+
+  drawQuad(qLeft,   qTop,     qW,  qH,  qColors.timeSinks,   'Time Sinks',   'High effort, low value',  'rgb(180,30,30)');
+  drawQuad(midXpx,  qTop,     qW2, qH,  qColors.bigProjects, 'Big Projects', 'High effort, high value', 'rgb(0,70,130)');
+  drawQuad(qLeft,   midYpx,   qW,  qH2, qColors.fillIns,     'Fill-ins',     'Low effort, low value',   'rgb(90,90,100)');
+  drawQuad(midXpx,  midYpx,   qW2, qH2, qColors.quickWins,   'Quick Wins',   'Low effort, high value',  'rgb(14,110,50)');
+
+  /* ── Dividing lines ─────────────────────── */
+  ctx.save();
+  ctx.strokeStyle = 'rgba(100,80,160,0.25)';
+  ctx.lineWidth   = 1.5;
+  ctx.setLineDash([5, 4]);
+  ctx.beginPath(); ctx.moveTo(midXpx, PAD_T); ctx.lineTo(midXpx, H - PAD_B); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(PAD_L, midYpx); ctx.lineTo(W - PAD_R, midYpx); ctx.stroke();
+  ctx.restore();
+
+  /* ── Axis lines ─────────────────────────── */
+  ctx.save();
+  ctx.strokeStyle = 'rgba(100,100,120,0.3)';
+  ctx.lineWidth   = 1;
+  ctx.beginPath();
+  ctx.moveTo(PAD_L, PAD_T); ctx.lineTo(PAD_L, H - PAD_B);
+  ctx.moveTo(PAD_L, H - PAD_B); ctx.lineTo(W - PAD_R, H - PAD_B);
+  ctx.stroke();
+  ctx.restore();
+
+  /* ── Axis labels ────────────────────────── */
+  ctx.save();
+  ctx.fillStyle    = 'rgba(80,80,100,0.7)';
+  ctx.font         = `11px -apple-system,'Segoe UI',sans-serif`;
+  ctx.textBaseline = 'middle';
+
+  /* X axis: Low / High and title */
+  ctx.textAlign = 'left';
+  ctx.fillText('Low', PAD_L + 2, H - PAD_B + 14);
+  ctx.textAlign = 'right';
+  ctx.fillText('High', W - PAD_R, H - PAD_B + 14);
+  ctx.textAlign = 'center';
+  ctx.font      = `600 11px -apple-system,'Segoe UI',sans-serif`;
+  ctx.fillText('← Value (Reach × Impact × Confidence%) →', PAD_L + CW / 2, H - PAD_B + 30);
+
+  /* Y axis: Low / High and title */
+  ctx.textAlign = 'right';
+  ctx.font      = `11px -apple-system,'Segoe UI',sans-serif`;
+  ctx.fillText('Low',  PAD_L - 6, H - PAD_B - 4);
+  ctx.fillText('High', PAD_L - 6, PAD_T + 4);
+  ctx.save();
+  ctx.translate(13, PAD_T + CH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign  = 'center';
+  ctx.font       = `600 11px -apple-system,'Segoe UI',sans-serif`;
+  ctx.fillStyle  = 'rgba(80,80,100,0.7)';
+  ctx.fillText('↑ Effort ↑', 0, 0);
+  ctx.restore();
+  ctx.restore();
+
+  /* ── Dot radius helper ──────────────────── */
+  const DOT_R = Math.max(5, Math.min(9, Math.round(CW / (plottable.length * 3 + 6))));
+
+  /* ── Dots ───────────────────────────────── */
+  const dotColors = {
+    timeSinks:   '#c0392b', /* red   */
+    bigProjects: '#0065A4', /* blue  */
+    fillIns:     '#888896', /* gray  */
+    quickWins:   '#16a34a', /* green */
+  };
+
+  function quadrantOf(v, e) {
+    const highV = v >= midVal;
+    const highE = e >= midEff;
+    if (highE && !highV)  return 'timeSinks';
+    if (highE && highV)   return 'bigProjects';
+    if (!highE && !highV) return 'fillIns';
+    return 'quickWins';
+  }
+
+  /* Store dot positions for hover */
+  canvas._dots = plottable.map((item) => {
+    const x  = toX(item.value);
+    const y  = toY(item.effort);
+    const q  = quadrantOf(item.value, item.effort);
+    const col = dotColors[q];
+
+    /* Shadow */
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, DOT_R + 2, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    ctx.fill();
+    ctx.restore();
+
+    /* Dot fill */
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, DOT_R, 0, Math.PI * 2);
+    ctx.fillStyle   = col;
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth   = 1.5;
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    /* Label: truncated item name */
+    const dotLabel = item.name.length > 18 ? item.name.slice(0, 16) + '…' : item.name;
+    ctx.save();
+    ctx.fillStyle    = '#2c2040';
+    ctx.font         = `600 12px -apple-system,'Segoe UI',sans-serif`;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(dotLabel, x, y - DOT_R - 2);
+    ctx.restore();
+
+    return { x, y, item, q };
+  });
+}
+
+/* ── Hover tooltip ───────────────────────── */
+(function attachMatrixHover() {
+  const canvas  = document.getElementById('matrixCanvas');
+  const tooltip = document.getElementById('matrixTooltip');
+  const wrap    = document.getElementById('matrixCanvasWrap');
+
+  canvas.addEventListener('mousemove', e => {
+    if (!canvas._dots || canvas._dots.length === 0) return;
+    const rect  = canvas.getBoundingClientRect();
+    const mx    = e.clientX - rect.left;
+    const my    = e.clientY - rect.top;
+    const DOT_R = 12; /* hit target larger than visual */
+
+    let hit = null;
+    for (const dot of canvas._dots) {
+      const dx = dot.x - mx, dy = dot.y - my;
+      if (Math.sqrt(dx*dx + dy*dy) <= DOT_R) { hit = dot; break; }
+    }
+
+    if (hit) {
+      const qLabel = { timeSinks: 'Time Sink', bigProjects: 'Big Project', fillIns: 'Fill-in', quickWins: 'Quick Win' };
+      const v  = hit.item.value.toFixed(1);
+      const e2 = hit.item.effort;
+      tooltip.innerHTML = `<strong>${escHtml(hit.item.name)}</strong><br>
+        Value: ${v} &nbsp;·&nbsp; Effort: ${e2} mo<br>
+        <span style="opacity:0.75">${qLabel[hit.q]}</span>`;
+
+      /* Position tooltip so it stays inside the wrap */
+      const wW = wrap.offsetWidth, wH = wrap.offsetHeight;
+      let tx = mx + 12, ty = my - 8;
+      if (tx + 200 > wW) tx = mx - 210;
+      if (ty < 0)        ty = 4;
+      tooltip.style.left = tx + 'px';
+      tooltip.style.top  = ty + 'px';
+      tooltip.classList.add('visible');
+      canvas.style.cursor = 'pointer';
+    } else {
+      tooltip.classList.remove('visible');
+      canvas.style.cursor = 'crosshair';
+    }
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    tooltip.classList.remove('visible');
+  });
+
+  /* Click a dot → open edit modal */
+  canvas.addEventListener('click', e => {
+    if (!canvas._dots) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    for (const dot of canvas._dots) {
+      const dx = dot.x - mx, dy = dot.y - my;
+      if (Math.sqrt(dx*dx + dy*dy) <= 14) {
+        openEditModal(dot.item.id);
+        break;
+      }
+    }
+  });
+})();
+
+/* Re-render matrix on window resize */
+window.addEventListener('resize', () => { if (matrixVisible) renderMatrix(); });
+
+/* ================================================================
    INIT
 ================================================================ */
 (function init() {
   loadItems();
+
+  /* Seed default demo items if first run */
+  if (items.length === 0) {
+    const base = 'https://mersgoodwill.atlassian.net/browse/';
+    items = [
+      {
+        id: 'item-1', name: 'Purchased Goods Reporting',
+        key: 'SB-2316', keyUrl: base + 'SB-2316',
+        type: 'story', desc: 'new goods report',
+        reach: 300, impact: 1, conf: 90, effort: 4,
+      },
+      {
+        id: 'item-2', name: 'Usability Study for Reporting Portal',
+        key: 'SB-2323', keyUrl: base + 'SB-2323',
+        type: 'story', desc: null,
+        reach: 300, impact: 2, conf: 98, effort: 9,
+      },
+      {
+        id: 'item-3', name: 'Mark Up Report',
+        key: 'SB-2161', keyUrl: base + 'SB-2161',
+        type: 'story', desc: 'see percentage of all items that were marked up',
+        reach: 200, impact: 3, conf: 95, effort: 10,
+      },
+    ];
+    nextId = 4;
+    saveItems();
+  }
+
   const s = getSettings();
   updateConnectionStatus(!!s.apiKey);
   if (s.issueType) {
