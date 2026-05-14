@@ -74,32 +74,6 @@ Then visit `http://localhost:8080`.
 
 ---
 
-## Jira Integration Setup
-
-The "Load from Jira" feature calls the **Anthropic API** with the **Atlassian Rovo MCP** server, which lets Claude query your Jira workspace in real time.
-
-### Prerequisites
-
-| Requirement | Where to get it |
-|---|---|
-| Anthropic API key | [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys) |
-| Atlassian account with Jira | [atlassian.com](https://www.atlassian.com) |
-| Atlassian Rovo MCP access | Enabled via [Atlassian Marketplace or Rovo](https://www.atlassian.com/platform/rovo) |
-
-### Steps
-
-1. Open `index.html` in your browser
-2. Click **Settings** (top right)
-3. Paste your `sk-ant-api03-...` Anthropic API key
-4. Leave the MCP URL as-is (`https://mcp.atlassian.com/v1/mcp`) unless you're self-hosting
-5. Click **Save Settings** — the status indicator turns green
-6. Click **Load from Jira**, enter a project key (e.g. `PROJ`) or a search description, choose issue type and max results, then click **Fetch Issues**
-7. Select the issues you want to import and click **Import Selected**
-
-> **Security note:** Your API key is stored only in your browser's `localStorage`. It is sent only to `api.anthropic.com` as a request header. It is never logged, proxied, or stored anywhere else.
-
----
-
 ## Manual Scoring (no Jira required)
 
 1. Click **Add Item**
