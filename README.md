@@ -27,7 +27,6 @@ Higher RICE score = higher priority.
 
 ## Features
 
-- **Load from Jira** — fetches live Epics, Stories, or Tasks from your workspace via the Anthropic API + Atlassian Rovo MCP
 - **Inline scoring table** — edit all four RICE inputs directly in the table; scores recalculate instantly
 - **Edit items** — click the pencil icon on any row to open a full edit modal (name, type, description, Jira URL, all RICE scores)
 - **Clickable Jira keys** — paste a URL like `https://mersgoodwill.atlassian.net/browse/SB-2161` and the key `SB-2161` renders as a live link back to the Kanban board; the key is auto-extracted from the URL as you type
@@ -35,7 +34,6 @@ Higher RICE score = higher priority.
 - **Sort** — sort the table by RICE Score, Name, or Effort
 - **Export CSV** — downloads a date-stamped CSV sorted by RICE score, including all fields
 - **Persistence** — items and scores are saved to `localStorage` and survive page refresh
-- **Settings** — API key and MCP URL stored locally in the browser, never sent to any server other than the Anthropic API
 - **No build step** — open `index.html` directly in any modern browser
 
 ---
